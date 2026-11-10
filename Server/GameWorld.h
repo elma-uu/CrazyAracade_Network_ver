@@ -14,6 +14,7 @@ struct Board {
 class GameWorld {
 public:
     static constexpr int MapTiles = 20;
+    bool InitBoard(MapId id);
     bool IsWalkable(int row, int col) const
     {
         return row >= 0 && row < MapTiles && col >= 0 && col < MapTiles
