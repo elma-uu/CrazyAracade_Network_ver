@@ -22,8 +22,21 @@ public:
     // C2S_Login에 넣을 UTF-8 닉네임
     static std::string MyNameUtf8();
 
+    // ---- 로그인 ----
+    enum class LoginState { None, Waiting, LoggedIn, Failed };
+    // C2S_Login을 보내고 응답을 기다리기 시작
+    static void RequestLogin();
+    static LoginState GetLoginState() { return sLoginState; }
+    static ULONGLONG LoginRequestedAt() { return sLoginRequestedAt; }
+    // 연결이 끊기거나 로그인 화면을 떠날 때
+    static void ResetLogin();
+    static int MyId() { return sMyId; }
+    static int Wins() { return sWins; }
+    static int Losses() { return sLosses; }
+
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);
+    static void OnLoginResult(const S2C_LoginResult* p);
 
 private:
     static void UpdateEchoTest();
@@ -31,6 +44,12 @@ private:
 
     static std::wstring sMyName;
     static std::wstring sServerIp;
+
+    static LoginState sLoginState;
+    static ULONGLONG sLoginRequestedAt;
+    static int sMyId;
+    static int sWins;
+    static int sLosses;
 
     static std::wstring sNotice;
     static ULONGLONG sNoticeUntil;

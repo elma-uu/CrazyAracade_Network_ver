@@ -6,6 +6,11 @@
 
 std::wstring GameClient::sMyName;
 std::wstring GameClient::sServerIp = L"127.0.0.1";
+GameClient::LoginState GameClient::sLoginState = GameClient::LoginState::None;
+ULONGLONG GameClient::sLoginRequestedAt = 0;
+int GameClient::sMyId = -1;
+int GameClient::sWins = 0;
+int GameClient::sLosses = 0;
 std::wstring GameClient::sNotice;
 ULONGLONG GameClient::sNoticeUntil = 0;
 bool GameClient::sEchoTestVisible = false;
@@ -24,8 +29,10 @@ void GameClient::Update()
 
     // 서버 패킷을 먼저 반영한 뒤 씬을 갱신한다
     NetworkManager::Poll();
-    if (NetworkManager::ConsumeConnectionLost())
+    if (NetworkManager::ConsumeConnectionLost()) {
+        ResetLogin();
         ShowNotice(L"연결 끊김: " + NetworkManager::LastError());
+    }
 }
 
 void GameClient::RenderOverlay(HDC hdc)
@@ -53,6 +60,34 @@ std::string GameClient::MyNameUtf8()
     std::string utf8(bytes, '\0');
     WideCharToMultiByte(CP_UTF8, 0, sMyName.c_str(), static_cast<int>(sMyName.size()), utf8.data(), bytes, nullptr, nullptr);
     return utf8;
+}
+
+void GameClient::RequestLogin()
+{
+    NetworkManager::SendLogin(MyNameUtf8());
+    sLoginState = LoginState::Waiting;
+    sLoginRequestedAt = GetTickCount64();
+}
+
+void GameClient::ResetLogin()
+{
+    sLoginState = LoginState::None;
+    sMyId = -1;
+}
+
+void GameClient::OnLoginResult(const S2C_LoginResult* p)
+{
+    // 요청하지 않은 응답은 무시 (늦게 온 응답 등)
+    if (sLoginState != LoginState::Waiting) return;
+
+    if (!p->success) {
+        sLoginState = LoginState::Failed;
+        return;
+    }
+    sLoginState = LoginState::LoggedIn;
+    sMyId = p->id;
+    sWins = p->win;
+    sLosses = p->lose;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)

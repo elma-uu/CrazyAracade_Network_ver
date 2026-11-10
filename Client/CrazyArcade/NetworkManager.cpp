@@ -296,6 +296,9 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
     case S2C_ECHO:
         GameClient::OnEcho(reinterpret_cast<S2C_Echo*>(packet));
         break;
+    case S2C_LOGIN_RESULT:
+        GameClient::OnLoginResult(reinterpret_cast<S2C_LoginResult*>(packet));
+        break;
     default: {
         char msg[64];
         sprintf_s(msg, "[net] 아직 처리하지 않는 패킷 type=%d\n", header->type);
