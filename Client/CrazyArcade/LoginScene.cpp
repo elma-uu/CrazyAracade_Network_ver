@@ -180,9 +180,7 @@ void LoginScene::UpdateLoginWait()
 
     switch (GameClient::GetLoginState()) {
     case GameClient::LoginState::LoggedIn:
-        mMessage = L"로그인 성공! 전적 " + std::to_wstring(GameClient::Wins()) + L"승 " +
-            std::to_wstring(GameClient::Losses()) + L"패";
-        mMessageColor = RGB(140, 230, 140);
+        SceneManager::ChangeScene(SceneType::Lobby);
         break;
     case GameClient::LoginState::Failed:
         // 서버는 이유를 보내지 않는다. 계획서상 서버가 막는 경우는 중복 닉네임뿐
