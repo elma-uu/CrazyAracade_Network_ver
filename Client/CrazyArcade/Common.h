@@ -2,6 +2,9 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+// Windows.h가 옛 winsock.h를 먼저 끌어오면 WinSock2.h와 충돌하므로 반드시 WinSock2.h를 먼저 포함한다
+#include <WinSock2.h>
+#include <WS2tcpip.h>
 #include <Windows.h>
 #include <string>
 #include <vector>

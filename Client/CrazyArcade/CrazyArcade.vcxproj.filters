@@ -19,6 +19,9 @@
     <Filter Include="Helpers">
       <UniqueIdentifier>{ad0005ad-d869-4e98-a91e-d1e84212f34f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network">
+      <UniqueIdentifier>{3b8f6c2e-9d41-4a7e-b5c0-1f2e7a9d4c61}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Scenes\SceneManager">
       <UniqueIdentifier>{64b6625a-c7e2-41f3-baa9-7fcf4e9b48d8}</UniqueIdentifier>
     </Filter>
@@ -87,6 +90,12 @@
     <ClInclude Include="Input.h">
       <Filter>Helpers</Filter>
     </ClInclude>
+    <ClInclude Include="NetworkManager.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Common\protocol.h">
+      <Filter>Network</Filter>
+    </ClInclude>
     <ClInclude Include="Gfx.h">
       <Filter>Helpers</Filter>
     </ClInclude>
@@ -154,6 +163,9 @@
     </ClCompile>
     <ClCompile Include="Input.cpp">
       <Filter>Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="NetworkManager.cpp">
+      <Filter>Network</Filter>
     </ClCompile>
     <ClCompile Include="Gfx.cpp">
       <Filter>Helpers</Filter>

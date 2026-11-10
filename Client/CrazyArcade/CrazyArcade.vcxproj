@@ -192,6 +192,8 @@ xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</C
     <ClInclude Include="Input.h" />
     <ClInclude Include="Item.h" />
     <ClInclude Include="LoginScene.h" />
+    <ClInclude Include="NetworkManager.h" />
+    <ClInclude Include="..\..\Common\protocol.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="resource1.h" />
@@ -218,6 +220,7 @@ xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</C
     <ClCompile Include="Item.cpp" />
     <ClCompile Include="LoginScene.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="NetworkManager.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="SceneManager.cpp" />
