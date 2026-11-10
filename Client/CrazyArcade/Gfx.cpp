@@ -4,6 +4,7 @@
 namespace {
     HDC sMemDC = nullptr;
     HFONT sTextFont = nullptr;
+    HFONT sSmallFont = nullptr;
     HPEN sTextPen = nullptr;
     HBRUSH sTextBrush = nullptr;
     HBITMAP sBlackPixel = nullptr;
@@ -97,6 +98,25 @@ void Gfx::DrawOutlinedText(HDC hdc, int x, int y, const std::wstring& text)
     SelectObject(hdc, oldFont);
 }
 
+void Gfx::DrawSmallText(HDC hdc, int x, int y, const std::wstring& text, COLORREF color)
+{
+    if (!sSmallFont) sSmallFont = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"맑은 고딕");
+
+    HGDIOBJ oldFont = SelectObject(hdc, sSmallFont);
+    int oldBkMode = SetBkMode(hdc, TRANSPARENT);
+    COLORREF oldColor = SetTextColor(hdc, RGB(0, 0, 0));
+    // 어떤 배경 위에서도 읽히도록 검은 그림자 한 번 + 본문
+    TextOutW(hdc, x + 1, y + 1, text.c_str(), static_cast<int>(text.size()));
+    SetTextColor(hdc, color);
+    TextOutW(hdc, x, y, text.c_str(), static_cast<int>(text.size()));
+
+    SetTextColor(hdc, oldColor);
+    SetBkMode(hdc, oldBkMode);
+    SelectObject(hdc, oldFont);
+}
+
 void Gfx::DrawDarkOverlay(HDC hdc, int width, int height)
 {
     // 1x1 검정 비트맵을 화면 크기로 늘려 반투명 합성 (매 프레임 큰 비트맵 생성 방지)
@@ -168,11 +188,13 @@ void Gfx::Release()
 {
     if (sMemDC) DeleteDC(sMemDC);
     if (sTextFont) DeleteObject(sTextFont);
+    if (sSmallFont) DeleteObject(sSmallFont);
     if (sTextPen) DeleteObject(sTextPen);
     if (sTextBrush) DeleteObject(sTextBrush);
     if (sBlackPixel) DeleteObject(sBlackPixel);
     sMemDC = nullptr;
     sTextFont = nullptr;
+    sSmallFont = nullptr;
     sTextPen = nullptr;
     sTextBrush = nullptr;
     sBlackPixel = nullptr;

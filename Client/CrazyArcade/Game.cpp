@@ -23,6 +23,37 @@ namespace {
     const wchar_t* kWindowTitle = L"CrazyArcade";
     constexpr DWORD kWindowStyle = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
     constexpr DWORD kFrameMs = 8;  // 약 120fps로 제한 (로직은 고정 스텝이라 프레임과 무관)
+
+    // 1단계 에코 테스트용: F5 = 127.0.0.1 접속, F6 = 에코 보내기, 결과를 화면 왼쪽 위에 표시
+    namespace EchoTest {
+        bool sVisible = false;
+        int sSent = 0;
+        std::wstring sStatus;
+
+        void Update()
+        {
+            if (Input::GetKeyDown(VK_F5)) {
+                sVisible = true;
+                sStatus = NetworkManager::Connect("127.0.0.1", SERVER_PORT) ? L"접속 성공" : L"접속 실패";
+            }
+            if (Input::GetKeyDown(VK_F6) && NetworkManager::IsConnected()) {
+                char msg[64];
+                sprintf_s(msg, "echo test #%d", ++sSent);
+                NetworkManager::SendEcho(msg);
+            }
+        }
+
+        void Render(HDC hdc)
+        {
+            if (!sVisible) return;
+            const std::string& echo = NetworkManager::LastEcho();
+            std::wstring last(echo.begin(), echo.end());   // 에코 테스트 문자열은 ASCII
+            Gfx::DrawSmallText(hdc, 10, 10, L"[F5] 접속  [F6] 에코  |  " + sStatus +
+                (NetworkManager::IsConnected() ? L" (연결됨)" : L" (연결 안 됨)"));
+            Gfx::DrawSmallText(hdc, 10, 36, L"보냄 " + std::to_wstring(sSent) +
+                L" / 받음 " + std::to_wstring(NetworkManager::EchoCount()) + L"  마지막: " + last);
+        }
+    }
 }
 
 bool Game::Initialize(HINSTANCE hInstance, int nCmdShow)
@@ -109,6 +140,7 @@ void Game::Frame()
     Time::Update();
     Audio::Update();
     // 서버 패킷을 먼저 반영한 뒤 씬을 갱신한다
+    EchoTest::Update();
     NetworkManager::Poll();
 
     float deltaMs = sceneChanged ? 0.0f : Time::DeltaMs();
@@ -125,6 +157,7 @@ void Game::Frame()
     RECT rc = { 0, 0, Config::ScreenWidth, Config::ScreenHeight };
     FillRect(sBackDC, &rc, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     SceneManager::Render(sBackDC);
+    EchoTest::Render(sBackDC);
 
     HDC hdc = GetDC(sHwnd);
     Present(hdc);

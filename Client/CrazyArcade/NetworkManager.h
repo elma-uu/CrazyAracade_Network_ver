@@ -19,6 +19,11 @@ public:
     // 패킷을 송신 큐에 넣는다. 실제 전송은 Poll()의 FlushSend에서
     static void SendPacket(const void* packet);
 
+    // ---- 1단계: 에코 테스트 ----
+    static void SendEcho(const char* message);
+    static const std::string& LastEcho() { return sLastEcho; }
+    static int EchoCount() { return sEchoCount; }
+
 private:
     static bool DoRecv();
     static bool FlushSend();
@@ -29,4 +34,6 @@ private:
     static int sPrevRemain;
     static std::vector<unsigned char> sSendQueue;
     static bool sWsaStarted;
+    static std::string sLastEcho;
+    static int sEchoCount;
 };

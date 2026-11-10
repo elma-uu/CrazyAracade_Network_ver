@@ -1,4 +1,6 @@
 #include "NetworkManager.h"
+#include <cstdio>
+#include <cstring>
 #pragma comment(lib, "ws2_32.lib")
 
 SOCKET NetworkManager::sSocket = INVALID_SOCKET;
@@ -6,6 +8,8 @@ unsigned char NetworkManager::sRecvBuf[RECV_BUF_SIZE] = {};
 int NetworkManager::sPrevRemain = 0;
 std::vector<unsigned char> NetworkManager::sSendQueue;
 bool NetworkManager::sWsaStarted = false;
+std::string NetworkManager::sLastEcho;
+int NetworkManager::sEchoCount = 0;
 
 bool NetworkManager::Connect(const char* ip, unsigned short port)
 {
@@ -140,7 +144,32 @@ bool NetworkManager::FlushSend()
     return sSendQueue.size() <= MAX_SEND_QUEUE;
 }
 
+void NetworkManager::SendEcho(const char* message)
+{
+    C2S_Echo p = {};
+    p.size = sizeof(p);
+    p.type = C2S_ECHO;
+    strncpy_s(p.message, message, _TRUNCATE);
+    SendPacket(&p);
+}
+
 void NetworkManager::ProcessPacket(unsigned char* packet)
 {
-    // TODO(11/4~): 패킷 종류별 처리
+    auto header = reinterpret_cast<PACKET_HEADER*>(packet);
+    switch (header->type) {
+    case S2C_ECHO: {
+        auto p = reinterpret_cast<S2C_Echo*>(packet);
+        p->message[sizeof(p->message) - 1] = '\0';   // 서버가 '\0'을 빠뜨려도 안전하게
+        sLastEcho = p->message;
+        ++sEchoCount;
+        OutputDebugStringA(("[net] S2C_Echo: " + sLastEcho + "\n").c_str());
+        break;
+    }
+    default: {
+        char msg[64];
+        sprintf_s(msg, "[net] 처리하지 않는 패킷 type=%d\n", header->type);
+        OutputDebugStringA(msg);
+        break;
+    }
+    }
 }
