@@ -1,6 +1,6 @@
 ﻿#include "Game.h"
 #include "SceneManager.h"
-#include "LoginScene.h"
+#include "TitleScene.h"
 #include "SelectScene.h"
 #include "ForestStage.h"
 #include "CityStage.h"
@@ -8,7 +8,7 @@
 
 static void RegisterScenes()
 {
-    SceneManager::Register<LoginScene>(SceneType::Login);
+    SceneManager::Register<TitleScene>(SceneType::Title);
     SceneManager::Register<SelectScene>(SceneType::Select);
     SceneManager::Register<ForestStage>(SceneType::Forest);
     SceneManager::Register<CityStage>(SceneType::City);
@@ -20,7 +20,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
     if (!Game::Initialize(hInstance, nCmdShow)) return 0;
 
     RegisterScenes();
-    SceneManager::ChangeScene(SceneType::Login);
+    SceneManager::ChangeScene(SceneType::Title);
 
     return Game::Run();
 }

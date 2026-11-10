@@ -33,7 +33,7 @@ void StageScene::OnEnter()
 void StageScene::Update(float)
 {
     if (IsGameOver()) {
-        if (Input::GetKeyDown('R')) SceneManager::ChangeScene(SceneType::Login);
+        if (Input::GetKeyDown('R')) SceneManager::ChangeScene(SceneType::Title);
         return;
     }
 

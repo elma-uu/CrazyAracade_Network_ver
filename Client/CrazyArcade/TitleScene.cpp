@@ -1,16 +1,16 @@
-﻿#include "LoginScene.h"
+﻿#include "TitleScene.h"
 #include "SceneManager.h"
 #include "AudioManager.h"
 #include "Input.h"
 #include "Game.h"
 #include "Gfx.h"
 
-void LoginScene::OnEnter()
+void TitleScene::OnEnter()
 {
     Audio::PlayMusic("Login.wav");
 }
 
-void LoginScene::Update(float)
+void TitleScene::Update(float)
 {
     if (!Input::GetKeyDown(VK_LBUTTON) || !Input::IsMouseInClient()) return;
 
@@ -22,7 +22,7 @@ void LoginScene::Update(float)
     }
 }
 
-void LoginScene::Render(HDC hdc)
+void TitleScene::Render(HDC hdc)
 {
     Gfx::DrawOpaque(hdc, BitmapID::Login, 0, 0, Config::ScreenWidth, Config::ScreenHeight, 0, 0, 800, 600);
 }

@@ -2,7 +2,7 @@
 
 std::function<std::unique_ptr<Scene>()> SceneManager::sFactories[static_cast<int>(SceneType::Count)];
 std::unique_ptr<Scene> SceneManager::sActive;
-SceneType SceneManager::sPending = SceneType::Login;
+SceneType SceneManager::sPending = SceneType::Title;
 bool SceneManager::sHasPending = false;
 
 void SceneManager::ChangeScene(SceneType type)
