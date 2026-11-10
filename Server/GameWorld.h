@@ -3,7 +3,7 @@
 #include <cstdint>
 
 /* 수정 - 2026-11-07 */
-enum class MapId : std::uint8_t { Forest = 1, City, Ice };
+#include "../Shared/MapInfo.h"
 
 struct Board {
     std::uint8_t obstacle = 0;
@@ -13,7 +13,8 @@ struct Board {
 
 class GameWorld {
 public:
-    static constexpr int MapTiles = 20;
+    static constexpr int MapTiles = MAP_TILES;
+    void BuildMapInfo(S2C_MapInfo& out) const;
     bool InitBoard(MapId id);
     bool IsWalkable(int row, int col) const
     {

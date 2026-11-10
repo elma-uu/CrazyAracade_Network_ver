@@ -124,3 +124,17 @@ bool GameWorld::InitBoard(MapId id)
     }
     return true;
 }
+
+/* 수정 - 2026-11-10 */
+void GameWorld::BuildMapInfo(S2C_MapInfo& out) const
+{
+    out.size = sizeof(out);
+    out.type = S2C_MAP_INFO;
+    out.mapId = mapId;
+    for (int row = 0; row < MapTiles; ++row) {
+        for (int col = 0; col < MapTiles; ++col) {
+            out.obstacle[row][col] = board[row][col].obstacle;
+            out.obstacleType[row][col] = board[row][col].variant;
+        }
+    }
+}
