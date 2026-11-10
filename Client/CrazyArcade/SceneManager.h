@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Scene.h"
 
-enum class SceneType { Title, Select, Forest, City, Ice, Count };
+enum class SceneType { Title, Login, Select, Forest, City, Ice, Count };
 
 class SceneManager {
 public:

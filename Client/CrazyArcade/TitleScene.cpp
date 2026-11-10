@@ -16,7 +16,7 @@ void TitleScene::Update(float)
 
     if (Input::GetMousePosition().x < 800) {
         Audio::PlayMusic("Menu.wav");
-        SceneManager::ChangeScene(SceneType::Select);
+        SceneManager::ChangeScene(SceneType::Login);
     } else {
         Game::Quit();
     }

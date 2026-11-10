@@ -1,6 +1,7 @@
 ﻿#include "Game.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
+#include "LoginScene.h"
 #include "SelectScene.h"
 #include "ForestStage.h"
 #include "CityStage.h"
@@ -9,6 +10,7 @@
 static void RegisterScenes()
 {
     SceneManager::Register<TitleScene>(SceneType::Title);
+    SceneManager::Register<LoginScene>(SceneType::Login);
     SceneManager::Register<SelectScene>(SceneType::Select);
     SceneManager::Register<ForestStage>(SceneType::Forest);
     SceneManager::Register<CityStage>(SceneType::City);
