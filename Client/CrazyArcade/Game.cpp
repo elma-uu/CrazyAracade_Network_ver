@@ -24,6 +24,24 @@ namespace {
     constexpr DWORD kWindowStyle = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
     constexpr DWORD kFrameMs = 8;  // 약 120fps로 제한 (로직은 고정 스텝이라 프레임과 무관)
 
+    // 접속 실패·연결 끊김 안내: 몇 초 동안 화면 가운데에 띄운다
+    namespace Notice {
+        constexpr ULONGLONG kShowMs = 3000;
+        std::wstring sText;
+        ULONGLONG sUntil = 0;
+
+        void Show(const std::wstring& text)
+        {
+            sText = text;
+            sUntil = GetTickCount64() + kShowMs;
+        }
+
+        void Render(HDC hdc)
+        {
+            if (GetTickCount64() < sUntil) Gfx::DrawNoticeBar(hdc, sText);
+        }
+    }
+
     // 1단계 에코 테스트용: F5 = 127.0.0.1 접속, F6 = 에코 보내기, 결과를 화면 왼쪽 위에 표시
     namespace EchoTest {
         bool sVisible = false;
@@ -34,7 +52,12 @@ namespace {
         {
             if (Input::GetKeyDown(VK_F5)) {
                 sVisible = true;
-                sStatus = NetworkManager::Connect("127.0.0.1", SERVER_PORT) ? L"접속 성공" : L"접속 실패";
+                if (NetworkManager::Connect("127.0.0.1", SERVER_PORT)) {
+                    sStatus = L"접속 성공";
+                } else {
+                    sStatus = L"접속 실패";
+                    Notice::Show(L"접속 실패: " + NetworkManager::LastError());
+                }
             }
             if (Input::GetKeyDown(VK_F6) && NetworkManager::IsConnected()) {
                 char msg[64];
@@ -142,6 +165,8 @@ void Game::Frame()
     // 서버 패킷을 먼저 반영한 뒤 씬을 갱신한다
     EchoTest::Update();
     NetworkManager::Poll();
+    if (NetworkManager::ConsumeConnectionLost())
+        Notice::Show(L"연결 끊김: " + NetworkManager::LastError());
 
     float deltaMs = sceneChanged ? 0.0f : Time::DeltaMs();
     if (sceneChanged) sFixedAccumulatorMs = 0.0f;
@@ -158,6 +183,7 @@ void Game::Frame()
     FillRect(sBackDC, &rc, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     SceneManager::Render(sBackDC);
     EchoTest::Render(sBackDC);
+    Notice::Render(sBackDC);
 
     HDC hdc = GetDC(sHwnd);
     Present(hdc);

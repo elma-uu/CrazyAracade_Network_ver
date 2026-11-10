@@ -15,6 +15,14 @@ namespace {
         return sMemDC;
     }
 
+    HFONT SmallFont()
+    {
+        if (!sSmallFont) sSmallFont = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"맑은 고딕");
+        return sSmallFont;
+    }
+
     void RGBtoHSV(BYTE r, BYTE g, BYTE b, double& h, double& s, double& v)
     {
         double R = r / 255.0, G = g / 255.0, B = b / 255.0;
@@ -100,11 +108,7 @@ void Gfx::DrawOutlinedText(HDC hdc, int x, int y, const std::wstring& text)
 
 void Gfx::DrawSmallText(HDC hdc, int x, int y, const std::wstring& text, COLORREF color)
 {
-    if (!sSmallFont) sSmallFont = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"맑은 고딕");
-
-    HGDIOBJ oldFont = SelectObject(hdc, sSmallFont);
+    HGDIOBJ oldFont = SelectObject(hdc, SmallFont());
     int oldBkMode = SetBkMode(hdc, TRANSPARENT);
     COLORREF oldColor = SetTextColor(hdc, RGB(0, 0, 0));
     // 어떤 배경 위에서도 읽히도록 검은 그림자 한 번 + 본문
@@ -112,6 +116,22 @@ void Gfx::DrawSmallText(HDC hdc, int x, int y, const std::wstring& text, COLORRE
     SetTextColor(hdc, color);
     TextOutW(hdc, x, y, text.c_str(), static_cast<int>(text.size()));
 
+    SetTextColor(hdc, oldColor);
+    SetBkMode(hdc, oldBkMode);
+    SelectObject(hdc, oldFont);
+}
+
+void Gfx::DrawNoticeBar(HDC hdc, const std::wstring& text)
+{
+    // 화면 가운데 검은 띠 + 가운데 정렬 글씨
+    RECT band = { 0, Config::ScreenHeight / 2 - 40, Config::ScreenWidth, Config::ScreenHeight / 2 + 40 };
+    FillRect(hdc, &band, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+
+    HGDIOBJ oldFont = SelectObject(hdc, SmallFont());
+    int oldBkMode = SetBkMode(hdc, TRANSPARENT);
+    COLORREF oldColor = SetTextColor(hdc, RGB(255, 220, 120));
+    std::wstring copy = text;
+    DrawTextW(hdc, copy.data(), static_cast<int>(copy.size()), &band, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     SetTextColor(hdc, oldColor);
     SetBkMode(hdc, oldBkMode);
     SelectObject(hdc, oldFont);

@@ -10,32 +10,90 @@ std::vector<unsigned char> NetworkManager::sSendQueue;
 bool NetworkManager::sWsaStarted = false;
 std::string NetworkManager::sLastEcho;
 int NetworkManager::sEchoCount = 0;
+std::wstring NetworkManager::sLastError;
+bool NetworkManager::sConnectionLost = false;
+
+namespace {
+    // 없는 IP로 블로킹 connect를 하면 20초 넘게 창이 멈추므로 최대 이만큼만 기다린다
+    constexpr int kConnectTimeoutMs = 4000;
+
+    std::wstring ConnectErrorText(int err)
+    {
+        switch (err) {
+        case WSAECONNREFUSED: return L"서버가 꺼져 있거나 포트가 다릅니다";
+        case WSAETIMEDOUT:    return L"서버 응답이 없습니다 (IP 주소를 확인하세요)";
+        case WSAENETUNREACH:
+        case WSAEHOSTUNREACH: return L"네트워크에 연결할 수 없습니다";
+        default:              return L"서버에 접속할 수 없습니다 (오류 " + std::to_wstring(err) + L")";
+        }
+    }
+}
 
 bool NetworkManager::Connect(const char* ip, unsigned short port)
 {
     Disconnect();
+    sLastError.clear();
+    sConnectionLost = false;
 
     if (!sWsaStarted) {
         WSADATA wsa;
-        if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
+        if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+            sLastError = L"윈속 초기화에 실패했습니다";
+            return false;
+        }
         sWsaStarted = true;
     }
-
-    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == INVALID_SOCKET) return false;
 
     sockaddr_in addr = {};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1 ||
-        connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
-        closesocket(sock);
+    if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1) {
+        sLastError = L"서버 IP 주소 형식이 잘못되었습니다";
         return false;
     }
 
-    // 접속이 끝난 뒤에는 논블로킹으로: recv/send가 기다리느라 게임 프레임이 멈추지 않게
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == INVALID_SOCKET) {
+        sLastError = ConnectErrorText(WSAGetLastError());
+        return false;
+    }
+
+    // 논블로킹으로 바꾼 뒤 connect를 걸고, select로 접속 완료를 최대 kConnectTimeoutMs까지만 기다린다.
+    // 이후 recv/send도 논블로킹이라 게임 프레임이 네트워크를 기다리느라 멈추지 않는다
     u_long noblock = 1;
     ioctlsocket(sock, FIONBIO, &noblock);
+
+    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        int err = WSAGetLastError();
+        if (err != WSAEWOULDBLOCK) {
+            closesocket(sock);
+            sLastError = ConnectErrorText(err);
+            return false;
+        }
+
+        fd_set writeSet, errorSet;
+        FD_ZERO(&writeSet);
+        FD_ZERO(&errorSet);
+        FD_SET(sock, &writeSet);
+        FD_SET(sock, &errorSet);
+        timeval timeout = { kConnectTimeoutMs / 1000, (kConnectTimeoutMs % 1000) * 1000 };
+
+        int ret = select(0, nullptr, &writeSet, &errorSet, &timeout);
+        if (ret == 0) {
+            closesocket(sock);
+            sLastError = ConnectErrorText(WSAETIMEDOUT);
+            return false;
+        }
+        if (ret == SOCKET_ERROR || FD_ISSET(sock, &errorSet)) {
+            int soError = 0;
+            int len = sizeof(soError);
+            getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&soError), &len);
+            closesocket(sock);
+            sLastError = ConnectErrorText(soError ? soError : WSAGetLastError());
+            return false;
+        }
+    }
+
     // 키 입력 같은 작은 패킷을 모아 보내지 않도록 Nagle 끄기
     BOOL nodelay = TRUE;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&nodelay), sizeof(nodelay));
@@ -69,8 +127,19 @@ void NetworkManager::Poll()
 {
     if (!IsConnected()) return;
 
-    if (!DoRecv() || !FlushSend())
+    // 실패한 쪽(DoRecv/FlushSend)이 sLastError에 이유를 적어 둔다
+    if (!DoRecv() || !FlushSend()) {
         Disconnect();
+        sConnectionLost = true;
+        OutputDebugStringW((L"[net] 연결 끊김: " + sLastError + L"\n").c_str());
+    }
+}
+
+bool NetworkManager::ConsumeConnectionLost()
+{
+    bool lost = sConnectionLost;
+    sConnectionLost = false;
+    return lost;
 }
 
 void NetworkManager::SendPacket(const void* packet)
@@ -93,10 +162,18 @@ bool NetworkManager::DoRecv()
         int space = RECV_BUF_SIZE - sPrevRemain;
         int ret = recv(sSocket, buf, space, 0);
 
-        if (ret == SOCKET_ERROR)   // WOULDBLOCK이면 지금 받을 게 없을 뿐 (정상)
-            return WSAGetLastError() == WSAEWOULDBLOCK;
-        if (ret == 0)              // 서버가 연결 종료
+        if (ret == SOCKET_ERROR) {   // WOULDBLOCK이면 지금 받을 게 없을 뿐 (정상)
+            int err = WSAGetLastError();
+            if (err == WSAEWOULDBLOCK) return true;
+            sLastError = (err == WSAECONNRESET)
+                ? L"서버와의 연결이 끊어졌습니다"
+                : L"서버에서 받는 중 오류가 났습니다 (오류 " + std::to_wstring(err) + L")";
             return false;
+        }
+        if (ret == 0) {              // 서버가 연결 종료
+            sLastError = L"서버가 연결을 종료했습니다";
+            return false;
+        }
 
         unsigned char* packetStart = sRecvBuf;
         int remain = sPrevRemain + ret;
@@ -106,8 +183,10 @@ bool NetworkManager::DoRecv()
             int packetSize = reinterpret_cast<PACKET_HEADER*>(packetStart)->size;
 
             // 말이 안 되는 size → 잘못된 패킷, 접속 종료
-            if (packetSize < static_cast<int>(sizeof(PACKET_HEADER)) || packetSize > MAX_PACKET_SIZE)
+            if (packetSize < static_cast<int>(sizeof(PACKET_HEADER)) || packetSize > MAX_PACKET_SIZE) {
+                sLastError = L"서버에서 잘못된 패킷이 왔습니다 (size=" + std::to_wstring(packetSize) + L")";
                 return false;
+            }
             // 아직 덜 옴 → 다음 recv에서 이어 붙임
             if (packetSize > remain)
                 break;
@@ -133,15 +212,22 @@ bool NetworkManager::FlushSend()
         int ret = send(sSocket, data, static_cast<int>(sSendQueue.size()), 0);
 
         if (ret == SOCKET_ERROR) {
-            if (WSAGetLastError() != WSAEWOULDBLOCK)
-                return false;   // 진짜 에러 → 접속 종료
+            int err = WSAGetLastError();
+            if (err != WSAEWOULDBLOCK) {   // 진짜 에러 → 접속 종료
+                sLastError = L"서버로 보내는 중 오류가 났습니다 (오류 " + std::to_wstring(err) + L")";
+                return false;
+            }
             break;              // 지금은 못 보냄 → 다음 프레임에 이어서
         }
         // 실제로 보낸 만큼만 큐에서 지운다
         sSendQueue.erase(sSendQueue.begin(), sSendQueue.begin() + ret);
     }
     // 서버가 오랫동안 받지 못해 큐가 64KB를 넘으면 끊긴 것으로 본다
-    return sSendQueue.size() <= MAX_SEND_QUEUE;
+    if (sSendQueue.size() > MAX_SEND_QUEUE) {
+        sLastError = L"서버가 응답하지 않습니다";
+        return false;
+    }
+    return true;
 }
 
 void NetworkManager::SendEcho(const char* message)
