@@ -12,6 +12,10 @@ public:
     // 메인 루프 (Ctrl+C 또는 창 닫기로 종료)
     void Run();
 
+    // WSAEWOULDBLOCK이 나올 때까지 accept 반복
+    // 새 소켓도 FIONBIO + TCP_NODELAY로 설정
+    void AcceptClients();
+
     void Shutdown();
 
 private:

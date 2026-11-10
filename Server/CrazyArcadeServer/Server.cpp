@@ -1,8 +1,14 @@
 #include "Server.h"
+#include "Session.h"
 #include <WS2tcpip.h>
 #include <atomic>
 #include <iostream>
 #include <string>
+#include <vector>
+
+// 1단계(에코 서버) 임시 세션 목록: 접속 순서대로 추가, 끊긴 자리는 재사용하지 않음
+// → 11/7에 SESSION 배열 + FindFreeSession으로 바꿀 예정
+static std::vector<SESSION> g_sessions;
 
 namespace {
     // Ctrl+C / 창 닫기에서 false로 바꿔 메인 루프를 끝낸다 (콘솔 핸들러는 다른 스레드에서 불림)
@@ -91,7 +97,9 @@ void Server::Run()
     std::cout << "[server] running (Ctrl+C to stop)" << std::endl;
 
     while (g_running) {
-        // 1. 새 접속 받기             (11/2)
+        // 1. 새 접속 받기 (없으면 바로 넘어감)
+        AcceptClients();
+
         // 2. 받기 → 재조립 → 처리      (11/3)
         // 3. 게임 중인 방 갱신          (3단계)
         // 4. 쌓아 둔 패킷 보내기        (11/4)
@@ -101,8 +109,44 @@ void Server::Run()
     }
 }
 
+void Server::AcceptClients()
+{
+    while (true) {
+        sockaddr_in addr{};
+        int addrLen = sizeof(addr);
+        SOCKET sock = accept(m_listen, reinterpret_cast<sockaddr*>(&addr), &addrLen);
+
+        if (sock == INVALID_SOCKET) {
+            int err = WSAGetLastError();
+            if (err != WSAEWOULDBLOCK)          // WOULDBLOCK = 지금은 새 접속 없음 (정상)
+                PrintSocketError("accept", err);
+            return;
+        }
+
+        // 클라 소켓도 논블로킹 + Nagle 끄기 (작은 패킷을 모으지 않고 바로 보냄)
+        u_long noblock = 1;
+        ioctlsocket(sock, FIONBIO, &noblock);
+        BOOL noDelay = TRUE;
+        setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                   reinterpret_cast<const char*>(&noDelay), sizeof(noDelay));
+
+        int id = static_cast<int>(g_sessions.size());
+        g_sessions.emplace_back();
+        g_sessions.back().Init(id, sock);
+
+        char ip[INET_ADDRSTRLEN] = "?";
+        inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip));
+        std::cout << "[" << id << "] connected from " << ip << ":"
+                  << ntohs(addr.sin_port) << std::endl;
+    }
+}
+
 void Server::Shutdown()
 {
+    for (SESSION& s : g_sessions)
+        if (s.InUse())
+            s.Close();
+
     if (m_listen != INVALID_SOCKET) {
         closesocket(m_listen);
         m_listen = INVALID_SOCKET;
