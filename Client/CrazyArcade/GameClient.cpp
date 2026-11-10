@@ -73,6 +73,7 @@ void GameClient::ResetLogin()
 {
     sLoginState = LoginState::None;
     sMyId = -1;
+    sWins = sLosses = 0;   // 다음 로그인에 이전 사람의 전적이 보이지 않게
 }
 
 void GameClient::OnLoginResult(const S2C_LoginResult* p)
