@@ -68,7 +68,11 @@ void NetworkManager::Poll()
 
 void NetworkManager::SendPacket(const void* packet)
 {
-    // TODO(11/2): 송신 큐
+    if (!IsConnected()) return;
+    // 바로 send하지 않고 큐에 쌓아 둔다: 논블로킹 send는 일부만 보내거나 WOULDBLOCK을 줄 수 있다
+    auto p = static_cast<const unsigned char*>(packet);
+    int size = reinterpret_cast<const PACKET_HEADER*>(p)->size;
+    sSendQueue.insert(sSendQueue.end(), p, p + size);
 }
 
 bool NetworkManager::DoRecv()
@@ -79,8 +83,20 @@ bool NetworkManager::DoRecv()
 
 bool NetworkManager::FlushSend()
 {
-    // TODO(11/2)
-    return true;
+    while (!sSendQueue.empty()) {
+        auto data = reinterpret_cast<const char*>(sSendQueue.data());
+        int ret = send(sSocket, data, static_cast<int>(sSendQueue.size()), 0);
+
+        if (ret == SOCKET_ERROR) {
+            if (WSAGetLastError() != WSAEWOULDBLOCK)
+                return false;   // 진짜 에러 → 접속 종료
+            break;              // 지금은 못 보냄 → 다음 프레임에 이어서
+        }
+        // 실제로 보낸 만큼만 큐에서 지운다
+        sSendQueue.erase(sSendQueue.begin(), sSendQueue.begin() + ret);
+    }
+    // 서버가 오랫동안 받지 못해 큐가 64KB를 넘으면 끊긴 것으로 본다
+    return sSendQueue.size() <= MAX_SEND_QUEUE;
 }
 
 void NetworkManager::ProcessPacket(unsigned char* packet)
