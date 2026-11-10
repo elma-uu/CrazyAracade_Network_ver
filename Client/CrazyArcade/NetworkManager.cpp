@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include "GameClient.h"
 #include <cstdio>
 #include <cstring>
 #pragma comment(lib, "ws2_32.lib")
@@ -8,8 +9,6 @@ unsigned char NetworkManager::sRecvBuf[RECV_BUF_SIZE] = {};
 int NetworkManager::sPrevRemain = 0;
 std::vector<unsigned char> NetworkManager::sSendQueue;
 bool NetworkManager::sWsaStarted = false;
-std::string NetworkManager::sLastEcho;
-int NetworkManager::sEchoCount = 0;
 std::wstring NetworkManager::sLastError;
 bool NetworkManager::sConnectionLost = false;
 
@@ -61,8 +60,6 @@ bool NetworkManager::Connect(const char* ip, unsigned short port)
     Disconnect();
     sLastError.clear();
     sConnectionLost = false;
-    sLastEcho.clear();   // 다시 접속하면 에코 기록도 새로 센다
-    sEchoCount = 0;
 
     if (!sWsaStarted) {
         WSADATA wsa;
@@ -286,14 +283,9 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
     }
 
     switch (header->type) {
-    case S2C_ECHO: {
-        auto p = reinterpret_cast<S2C_Echo*>(packet);
-        p->message[sizeof(p->message) - 1] = '\0';   // 서버가 '\0'을 빠뜨려도 안전하게
-        sLastEcho = p->message;
-        ++sEchoCount;
-        OutputDebugStringA(("[net] S2C_Echo: " + sLastEcho + "\n").c_str());
+    case S2C_ECHO:
+        GameClient::OnEcho(reinterpret_cast<S2C_Echo*>(packet));
         break;
-    }
     default: {
         char msg[64];
         sprintf_s(msg, "[net] 아직 처리하지 않는 패킷 type=%d\n", header->type);

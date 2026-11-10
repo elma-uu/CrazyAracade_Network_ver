@@ -93,6 +93,9 @@
     <ClInclude Include="NetworkManager.h">
       <Filter>Network</Filter>
     </ClInclude>
+    <ClInclude Include="GameClient.h">
+      <Filter>Network</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Common\protocol.h">
       <Filter>Network</Filter>
     </ClInclude>
@@ -165,6 +168,9 @@
       <Filter>Helpers</Filter>
     </ClCompile>
     <ClCompile Include="NetworkManager.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="GameClient.cpp">
       <Filter>Network</Filter>
     </ClCompile>
     <ClCompile Include="Gfx.cpp">

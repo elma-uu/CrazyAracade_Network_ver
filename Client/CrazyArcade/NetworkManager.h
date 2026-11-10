@@ -4,6 +4,7 @@
 
 // 서버 연결과 패킷 송수신만 담당한다 (화면·게임 상태는 모른다).
 // 소켓은 논블로킹이며, 매 프레임 Poll()에서 받기 → 재조립 → 처리 → 보내기를 한 번에 한다.
+// 받은 패킷은 종류별로 GameClient::On~ 에 넘긴다.
 class NetworkManager {
 public:
     // 논블로킹 connect + select로 최대 4초 대기. 실패하면 false, 이유는 LastError()
@@ -24,10 +25,8 @@ public:
     // Poll 중에 연결이 끊겼으면 한 번만 true (스스로 Disconnect한 경우는 false)
     static bool ConsumeConnectionLost();
 
-    // ---- 1단계: 에코 테스트 ----
+    // ---- C2S 보내기 ----
     static void SendEcho(const char* message);
-    static const std::string& LastEcho() { return sLastEcho; }
-    static int EchoCount() { return sEchoCount; }
 
 private:
     static bool DoRecv();
@@ -40,8 +39,6 @@ private:
     static int sPrevRemain;
     static std::vector<unsigned char> sSendQueue;
     static bool sWsaStarted;
-    static std::string sLastEcho;
-    static int sEchoCount;
     static std::wstring sLastError;
     static bool sConnectionLost;
 };
