@@ -10,6 +10,8 @@ public:
     static bool Connect(const char* ip, unsigned short port);
     static void Disconnect();
     static bool IsConnected() { return sSocket != INVALID_SOCKET; }
+    // 프로그램 종료 시: 연결 해제 + WSACleanup
+    static void Shutdown();
 
     // 매 프레임: recv 반복 → 재조립 → ProcessPacket → FlushSend
     static void Poll();
@@ -26,4 +28,5 @@ private:
     static unsigned char sRecvBuf[RECV_BUF_SIZE];
     static int sPrevRemain;
     static std::vector<unsigned char> sSendQueue;
+    static bool sWsaStarted;
 };

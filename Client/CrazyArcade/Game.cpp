@@ -5,6 +5,7 @@
 #include "ResourceManager.h"
 #include "AudioManager.h"
 #include "Gfx.h"
+#include "NetworkManager.h"
 #include <ctime>
 #include <imm.h>
 #include <timeapi.h>
@@ -142,6 +143,7 @@ void Game::Quit()
 void Game::Shutdown()
 {
     SceneManager::Release();
+    NetworkManager::Shutdown();
     Audio::Shutdown();
     Gfx::Release();
     ResourceManager::UnloadAll();
