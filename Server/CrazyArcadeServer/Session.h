@@ -32,6 +32,9 @@ public:
     int  GetId() const { return m_id; }
 
 private:
+    // C2S 핸들러 (ProcessPacket에서 호출)
+    void OnEcho(const C2S_Echo* p);
+
     int           m_id = -1;
     SOCKET        m_socket = INVALID_SOCKET;
     SESSION_STATE m_state = ST_FREE;

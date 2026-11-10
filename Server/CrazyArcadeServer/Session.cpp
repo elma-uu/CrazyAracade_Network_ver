@@ -116,7 +116,29 @@ void SESSION::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
 
-    // 11/5부터 패킷 종류별 처리. 지금은 재조립 확인용 로그만 남긴다.
-    std::cout << "[" << m_id << "] packet type=" << static_cast<int>(header->type)
-              << " size=" << header->size << std::endl;
+    switch (header->type) {
+    case C2S_ECHO:
+        OnEcho(reinterpret_cast<C2S_Echo*>(packet));
+        break;
+    default:
+        // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
+        std::cout << "[" << m_id << "] unknown packet type=" << static_cast<int>(header->type)
+                  << " size=" << header->size << std::endl;
+        break;
+    }
+}
+
+// 1단계 에코: 받은 문자열을 그대로 돌려준다
+void SESSION::OnEcho(const C2S_Echo* p)
+{
+    S2C_Echo reply{};
+    reply.size = sizeof(reply);
+    reply.type = S2C_ECHO;
+    memcpy(reply.message, p->message, sizeof(reply.message));
+    SendPacket(&reply);
+
+    // 로그 출력용 복사본: 클라가 '\0' 없이 64바이트를 꽉 채워 보내도 안전하게
+    char text[sizeof(p->message) + 1]{};
+    memcpy(text, p->message, sizeof(p->message));
+    std::cout << "[" << m_id << "] echo: " << text << std::endl;
 }
