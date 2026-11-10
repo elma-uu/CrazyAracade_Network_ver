@@ -17,9 +17,14 @@ private:
     void HandleTyping();
     void TypeChar(wchar_t ch);
     void Submit();
+    void ConnectToServer();
 
     std::wstring mName;
     std::wstring mIp = L"127.0.0.1";
     int mFocus = FieldName;
-    std::wstring mMessage;   // 입력 오류 안내
+    std::wstring mMessage;           // 입력 오류·접속 결과 안내
+    COLORREF mMessageColor = RGB(255, 120, 120);
+    // Enter 직후 한 프레임은 "접속 중..."을 그리고, 다음 프레임에 접속한다 (접속은 최대 4초 멈춤)
+    bool mConnectPending = false;
+    bool mConnected = false;   // 접속 성공, 로그인 응답 대기 중
 };

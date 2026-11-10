@@ -15,12 +15,22 @@ public:
     // 화면 가운데에 몇 초간 안내 문구
     static void ShowNotice(const std::wstring& text);
 
+    // ---- 내 정보 (로그인 화면에서 입력, 다시 들어오면 그대로 채워 줌) ----
+    static void SetLoginInfo(const std::wstring& name, const std::wstring& serverIp);
+    static const std::wstring& MyName() { return sMyName; }
+    static const std::wstring& ServerIp() { return sServerIp; }
+    // C2S_Login에 넣을 UTF-8 닉네임
+    static std::string MyNameUtf8();
+
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);
 
 private:
     static void UpdateEchoTest();
     static void RenderEchoTest(HDC hdc);
+
+    static std::wstring sMyName;
+    static std::wstring sServerIp;
 
     static std::wstring sNotice;
     static ULONGLONG sNoticeUntil;

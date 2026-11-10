@@ -2,7 +2,8 @@
 #include "SceneManager.h"
 #include "Input.h"
 #include "Gfx.h"
-#include "protocol.h"
+#include "NetworkManager.h"
+#include "GameClient.h"
 
 namespace {
     // 입력칸 위치 (1500x900 화면 가운데)
@@ -30,6 +31,9 @@ namespace {
 void LoginScene::OnEnter()
 {
     Input::SetTextInputEnabled(true);
+    // 전에 입력한 값이 있으면 다시 채워 준다
+    mName = GameClient::MyName();
+    mIp = GameClient::ServerIp();
 }
 
 void LoginScene::OnExit()
@@ -39,15 +43,30 @@ void LoginScene::OnExit()
 
 void LoginScene::Update(float)
 {
+    // 로그인 전에 화면을 떠나면 접속도 끊는다 (서버에 닉네임 없는 세션이 남지 않게)
     if (Input::GetKeyDown(VK_ESCAPE)) {
+        NetworkManager::Disconnect();
         SceneManager::ChangeScene(SceneType::Title);
         return;
     }
     // 온라인 인게임이 완성될 때까지 기존 2인 모드도 들어갈 수 있게 남겨 둔다
     if (Input::GetKeyDown(VK_F9)) {
+        NetworkManager::Disconnect();
         SceneManager::ChangeScene(SceneType::Select);
         return;
     }
+
+    if (mConnectPending) {
+        ConnectToServer();
+        return;
+    }
+    if (mConnected && !NetworkManager::IsConnected()) {   // 로그인 응답 전에 끊김
+        mConnected = false;
+        mMessage = L"연결 끊김: " + NetworkManager::LastError();
+        mMessageColor = RGB(255, 120, 120);
+    }
+    // 접속된 뒤에는 로그인 응답을 기다리므로 입력을 막는다
+    if (mConnected) return;
 
     HandleClick();
     HandleTyping();
@@ -105,6 +124,7 @@ void LoginScene::TypeChar(wchar_t ch)
     }
     mName.push_back(ch);
     mMessage.clear();
+    mMessageColor = RGB(255, 120, 120);
 }
 
 void LoginScene::Submit()
@@ -119,8 +139,28 @@ void LoginScene::Submit()
         mMessage = L"서버 IP를 입력하세요";
         return;
     }
-    // TODO(11/9): 서버 접속
-    mMessage.clear();
+    mMessage = L"서버에 접속하는 중...";
+    mMessageColor = RGB(255, 255, 255);
+    mConnectPending = true;
+}
+
+void LoginScene::ConnectToServer()
+{
+    mConnectPending = false;
+    mMessageColor = RGB(255, 120, 120);
+
+    std::string ip;   // 숫자와 점만 입력받으므로 ASCII 그대로 옮긴다
+    for (wchar_t ch : mIp) ip.push_back(static_cast<char>(ch));
+    if (!NetworkManager::Connect(ip.c_str(), SERVER_PORT)) {
+        mMessage = L"접속 실패: " + NetworkManager::LastError();
+        return;
+    }
+
+    GameClient::SetLoginInfo(mName, mIp);
+    mConnected = true;
+    mMessage = L"접속 성공! 로그인 응답을 기다리는 중...";
+    mMessageColor = RGB(140, 230, 140);
+    // TODO(11/10): NetworkManager::SendLogin → S2C_LoginResult 받으면 로비로
 }
 
 void LoginScene::Render(HDC hdc)
@@ -151,7 +191,7 @@ void LoginScene::Render(HDC hdc)
     }
 
     if (!mMessage.empty())
-        Gfx::DrawSmallText(hdc, kBoxX, kBoxY[FieldIp] + kBoxH + 24, mMessage, RGB(255, 120, 120));
+        Gfx::DrawSmallText(hdc, kBoxX, kBoxY[FieldIp] + kBoxH + 24, mMessage, mMessageColor);
 
     Gfx::DrawSmallText(hdc, kBoxX, kBoxY[FieldIp] + kBoxH + 70, L"Tab 칸 이동    Enter 접속", RGB(200, 200, 200));
     Gfx::DrawSmallText(hdc, 20, Config::ScreenHeight - 40, L"ESC 타이틀로    F9 한 컴퓨터 2인 모드");

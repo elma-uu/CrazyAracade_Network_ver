@@ -4,6 +4,8 @@
 #include "Gfx.h"
 #include <cstdio>
 
+std::wstring GameClient::sMyName;
+std::wstring GameClient::sServerIp = L"127.0.0.1";
 std::wstring GameClient::sNotice;
 ULONGLONG GameClient::sNoticeUntil = 0;
 bool GameClient::sEchoTestVisible = false;
@@ -36,6 +38,21 @@ void GameClient::ShowNotice(const std::wstring& text)
 {
     sNotice = text;
     sNoticeUntil = GetTickCount64() + kNoticeMs;
+}
+
+void GameClient::SetLoginInfo(const std::wstring& name, const std::wstring& serverIp)
+{
+    sMyName = name;
+    sServerIp = serverIp;
+}
+
+std::string GameClient::MyNameUtf8()
+{
+    if (sMyName.empty()) return {};
+    int bytes = WideCharToMultiByte(CP_UTF8, 0, sMyName.c_str(), static_cast<int>(sMyName.size()), nullptr, 0, nullptr, nullptr);
+    std::string utf8(bytes, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, sMyName.c_str(), static_cast<int>(sMyName.size()), utf8.data(), bytes, nullptr, nullptr);
+    return utf8;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)
