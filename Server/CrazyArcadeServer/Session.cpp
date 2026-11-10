@@ -9,6 +9,7 @@ void SESSION::Init(int id, SOCKET sock)
     m_socket = sock;
     m_state = ST_CONNECTED;
     m_prevRemain = 0;
+    m_sendQueue.clear();
 }
 
 void SESSION::Close()
@@ -17,7 +18,46 @@ void SESSION::Close()
         closesocket(m_socket);
         m_socket = INVALID_SOCKET;
     }
+    m_sendQueue.clear();
     m_state = ST_FREE;
+}
+
+// 논블로킹 send는 일부만 보내거나 WSAEWOULDBLOCK을 돌려줄 수 있어서
+// 바로 보내지 않고 세션마다 있는 송신 큐에 쌓아 둔다.
+void SESSION::SendPacket(const void* packet)
+{
+    auto p    = static_cast<const unsigned char*>(packet);
+    int  size = reinterpret_cast<const PACKET_HEADER*>(p)->size;
+    m_sendQueue.insert(m_sendQueue.end(), p, p + size);
+}
+
+bool SESSION::FlushSend()
+{
+    while (!m_sendQueue.empty()) {
+        auto data = reinterpret_cast<const char*>(m_sendQueue.data());
+        int  ret  = send(m_socket, data, static_cast<int>(m_sendQueue.size()), 0);
+
+        if (ret == SOCKET_ERROR) {
+            int err = WSAGetLastError();
+            if (err != WSAEWOULDBLOCK) {   // 진짜 에러 → 접속 종료
+                std::cout << "[" << m_id << "] ";
+                PrintSocketError("send", err);
+                return false;
+            }
+            break;                         // 지금은 못 보냄 → 다음 루프에서
+        }
+
+        // 실제로 보낸 만큼만 큐에서 지운다
+        m_sendQueue.erase(m_sendQueue.begin(), m_sendQueue.begin() + ret);
+    }
+
+    // 큐가 64KB를 넘으면 데이터를 받지 못하는 클라이언트로 보고 끊는다
+    if (m_sendQueue.size() > static_cast<size_t>(MAX_SEND_QUEUE)) {
+        std::cout << "[" << m_id << "] send queue overflow ("
+                  << m_sendQueue.size() << " bytes)" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 // TCP는 보낸 단위 그대로 오지 않는다 (여러 패킷이 한 번에 / 한 패킷이 여러 번에).

@@ -109,7 +109,14 @@ void Server::Run()
             }
         }
         // 3. 게임 중인 방 갱신          (3단계)
-        // 4. 쌓아 둔 패킷 보내기        (11/4)
+
+        // 4. 쌓아 둔 패킷 보내기
+        for (SESSION& s : g_sessions) {
+            if (s.InUse() && !s.FlushSend()) {
+                std::cout << "[" << s.GetId() << "] disconnected" << std::endl;
+                s.Close();
+            }
+        }
 
         // 5. CPU 사용량 줄이기
         Sleep(1);
