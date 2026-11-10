@@ -100,7 +100,14 @@ void Server::Run()
         // 1. 새 접속 받기 (없으면 바로 넘어감)
         AcceptClients();
 
-        // 2. 받기 → 재조립 → 처리      (11/3)
+        // 2. 받기 → 패킷 재조립 → ProcessPacket
+        //    접속이 끊겼거나 잘못된 패킷이면 닫는다 (11/8에 Server::Disconnect로 정리)
+        for (SESSION& s : g_sessions) {
+            if (s.InUse() && !s.DoRecv()) {
+                std::cout << "[" << s.GetId() << "] disconnected" << std::endl;
+                s.Close();
+            }
+        }
         // 3. 게임 중인 방 갱신          (3단계)
         // 4. 쌓아 둔 패킷 보내기        (11/4)
 
