@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Scene.h"
 #include "TileMap.h"
+#include "../../Shared/MapInfo.h"
 #include "Player.h"
 #include "Bomb.h"
 
@@ -9,6 +10,7 @@
 class StageScene : public Scene {
 public:
     StageScene();
+    void ApplyMapInfo(const S2C_MapInfo& packet);
 
     void OnEnter() override;
     void Update(float deltaTime) override;

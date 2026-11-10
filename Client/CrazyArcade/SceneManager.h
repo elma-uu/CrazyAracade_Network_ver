@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "Scene.h"
 
+struct S2C_MapInfo;
+
 enum class SceneType { Login, Select, Forest, City, Ice, Count };
 
 class SceneManager {
@@ -14,6 +16,7 @@ public:
     // 전환은 현재 프레임이 끝난 뒤 적용된다 (Update 도중 자기 자신이 파괴되는 일 방지).
     // 씬은 진입할 때마다 새로 생성되므로 이전 판의 상태가 남지 않는다.
     static void ChangeScene(SceneType type);
+    static bool OnMapInfo(const S2C_MapInfo& packet);
 
     static void Update(float deltaTime);
     static void FixedUpdate();

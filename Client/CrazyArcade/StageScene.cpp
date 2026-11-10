@@ -30,6 +30,20 @@ void StageScene::OnEnter()
     }
 }
 
+/* 수정 - 2026-11-11 */
+void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
+{
+    static_assert(TileMap::Size == MAP_TILES);
+    for (int row = 0; row < MAP_TILES; ++row) {
+        for (int col = 0; col < MAP_TILES; ++col) {
+            Tile& tile = mMap.At(row, col);
+            tile.obstacle = packet.obstacle[row][col];
+            tile.variant = packet.obstacleType[row][col];
+            tile.item = ItemType::None; // 숨은 아이템은 서버에서 관리한다.
+        }
+    }
+}
+
 void StageScene::Update(float)
 {
     if (IsGameOver()) {
