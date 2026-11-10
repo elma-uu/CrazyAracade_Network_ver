@@ -15,6 +15,7 @@ namespace {
 
     constexpr int kMaxNameBytes = MAX_NAME_LEN - 1;   // UTF-8 기준, '\0' 자리 제외
     constexpr size_t kMaxIpChars = 15;                // "255.255.255.255"
+    constexpr ULONGLONG kLoginTimeoutMs = 5000;       // 접속 후 로그인 응답을 기다리는 최대 시간
 
     RECT BoxRect(int field)
     {
@@ -46,12 +47,14 @@ void LoginScene::Update(float)
     // 로그인 전에 화면을 떠나면 접속도 끊는다 (서버에 닉네임 없는 세션이 남지 않게)
     if (Input::GetKeyDown(VK_ESCAPE)) {
         NetworkManager::Disconnect();
+        GameClient::ResetLogin();
         SceneManager::ChangeScene(SceneType::Title);
         return;
     }
     // 온라인 인게임이 완성될 때까지 기존 2인 모드도 들어갈 수 있게 남겨 둔다
     if (Input::GetKeyDown(VK_F9)) {
         NetworkManager::Disconnect();
+        GameClient::ResetLogin();
         SceneManager::ChangeScene(SceneType::Select);
         return;
     }
@@ -60,13 +63,10 @@ void LoginScene::Update(float)
         ConnectToServer();
         return;
     }
-    if (mConnected && !NetworkManager::IsConnected()) {   // 로그인 응답 전에 끊김
-        mConnected = false;
-        mMessage = L"연결 끊김: " + NetworkManager::LastError();
-        mMessageColor = RGB(255, 120, 120);
+    if (mConnected) {
+        UpdateLoginWait();
+        if (mConnected) return;   // 로그인 응답을 기다리는 동안은 입력을 막는다
     }
-    // 접속된 뒤에는 로그인 응답을 기다리므로 입력을 막는다
-    if (mConnected) return;
 
     HandleClick();
     HandleTyping();
@@ -157,10 +157,45 @@ void LoginScene::ConnectToServer()
     }
 
     GameClient::SetLoginInfo(mName, mIp);
+    GameClient::RequestLogin();
     mConnected = true;
-    mMessage = L"접속 성공! 로그인 응답을 기다리는 중...";
-    mMessageColor = RGB(140, 230, 140);
-    // TODO(11/10): NetworkManager::SendLogin → S2C_LoginResult 받으면 로비로
+    mMessage = L"로그인하는 중...";
+    mMessageColor = RGB(255, 255, 255);
+}
+
+void LoginScene::UpdateLoginWait()
+{
+    auto fail = [this](const std::wstring& message) {
+        NetworkManager::Disconnect();
+        GameClient::ResetLogin();
+        mConnected = false;
+        mMessage = message;
+        mMessageColor = RGB(255, 120, 120);
+    };
+
+    if (!NetworkManager::IsConnected()) {   // 로그인 응답 전에 끊김
+        fail(L"연결 끊김: " + NetworkManager::LastError());
+        return;
+    }
+
+    switch (GameClient::GetLoginState()) {
+    case GameClient::LoginState::LoggedIn:
+        mMessage = L"로그인 성공! 전적 " + std::to_wstring(GameClient::Wins()) + L"승 " +
+            std::to_wstring(GameClient::Losses()) + L"패";
+        mMessageColor = RGB(140, 230, 140);
+        break;
+    case GameClient::LoginState::Failed:
+        // 서버는 이유를 보내지 않는다. 계획서상 서버가 막는 경우는 중복 닉네임뿐
+        mFocus = FieldName;
+        fail(L"로그인 실패: 이미 접속 중인 닉네임입니다");
+        break;
+    case GameClient::LoginState::Waiting:
+        if (GetTickCount64() - GameClient::LoginRequestedAt() > kLoginTimeoutMs)
+            fail(L"로그인 실패: 서버가 응답하지 않습니다");
+        break;
+    default:
+        break;
+    }
 }
 
 void LoginScene::Render(HDC hdc)

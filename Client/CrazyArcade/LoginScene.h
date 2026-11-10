@@ -18,6 +18,8 @@ private:
     void TypeChar(wchar_t ch);
     void Submit();
     void ConnectToServer();
+    // 로그인 요청 후: 성공/실패/시간 초과/끊김 처리
+    void UpdateLoginWait();
 
     std::wstring mName;
     std::wstring mIp = L"127.0.0.1";
@@ -26,5 +28,5 @@ private:
     COLORREF mMessageColor = RGB(255, 120, 120);
     // Enter 직후 한 프레임은 "접속 중..."을 그리고, 다음 프레임에 접속한다 (접속은 최대 4초 멈춤)
     bool mConnectPending = false;
-    bool mConnected = false;   // 접속 성공, 로그인 응답 대기 중
+    bool mConnected = false;   // 접속 성공, 로그인 요청 보냄 (응답 대기 또는 성공)
 };
