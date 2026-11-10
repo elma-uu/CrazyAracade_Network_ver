@@ -1,6 +1,6 @@
-//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++¿¡¼­ »ý¼ºÇÑ Æ÷ÇÔ ÆÄÀÏÀÔ´Ï´Ù.
-// Resource2.rc¿¡¼­ »ç¿ëµÇ°í ÀÖ½À´Ï´Ù.
+ï»¿//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ì—ì„œ ìƒì„±í•œ í¬í•¨ íŒŒì¼ìž…ë‹ˆë‹¤.
+// Resource2.rcì—ì„œ ì‚¬ìš©ë˜ê³  ìžˆìŠµë‹ˆë‹¤.
 //
 #define IDB_BITMAP_BOMB_CENTER          101
 #define IDB_BITMAP_BOMB_POP             102
