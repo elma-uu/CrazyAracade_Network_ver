@@ -63,7 +63,10 @@ void NetworkManager::Shutdown()
 
 void NetworkManager::Poll()
 {
-    // TODO(11/3): DoRecv → FlushSend
+    if (!IsConnected()) return;
+
+    if (!DoRecv() || !FlushSend())
+        Disconnect();
 }
 
 void NetworkManager::SendPacket(const void* packet)
@@ -75,10 +78,48 @@ void NetworkManager::SendPacket(const void* packet)
     sSendQueue.insert(sSendQueue.end(), p, p + size);
 }
 
+// 서버 SESSION::DoRecv와 같은 재조립 코드.
+// TCP는 보낸 단위 그대로 오지 않으므로(붙어서 오거나 잘려서 옴) 버퍼에 모아 두었다가
+// 맨 앞 헤더의 size만큼 다 모였을 때만 패킷 하나로 처리한다.
 bool NetworkManager::DoRecv()
 {
-    // TODO(11/3): 패킷 재조립
-    return true;
+    while (IsConnected()) {
+        // 지난번에 남은 조각 뒤에 이어서 받는다
+        char* buf = reinterpret_cast<char*>(sRecvBuf) + sPrevRemain;
+        int space = RECV_BUF_SIZE - sPrevRemain;
+        int ret = recv(sSocket, buf, space, 0);
+
+        if (ret == SOCKET_ERROR)   // WOULDBLOCK이면 지금 받을 게 없을 뿐 (정상)
+            return WSAGetLastError() == WSAEWOULDBLOCK;
+        if (ret == 0)              // 서버가 연결 종료
+            return false;
+
+        unsigned char* packetStart = sRecvBuf;
+        int remain = sPrevRemain + ret;
+
+        // 헤더(3바이트)조차 잘려서 올 수 있으므로 헤더가 다 왔는지부터 확인
+        while (remain >= static_cast<int>(sizeof(PACKET_HEADER))) {
+            int packetSize = reinterpret_cast<PACKET_HEADER*>(packetStart)->size;
+
+            // 말이 안 되는 size → 잘못된 패킷, 접속 종료
+            if (packetSize < static_cast<int>(sizeof(PACKET_HEADER)) || packetSize > MAX_PACKET_SIZE)
+                return false;
+            // 아직 덜 옴 → 다음 recv에서 이어 붙임
+            if (packetSize > remain)
+                break;
+
+            ProcessPacket(packetStart);
+            if (!IsConnected()) return false;   // 처리 중에 연결을 끊은 경우
+            packetStart += packetSize;
+            remain -= packetSize;
+        }
+
+        // 남은 조각을 버퍼 앞으로 옮겨 둔다
+        sPrevRemain = remain;
+        if (remain > 0)
+            memmove(sRecvBuf, packetStart, remain);
+    }
+    return false;
 }
 
 bool NetworkManager::FlushSend()

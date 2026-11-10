@@ -108,6 +108,8 @@ void Game::Frame()
     Input::Update();
     Time::Update();
     Audio::Update();
+    // 서버 패킷을 먼저 반영한 뒤 씬을 갱신한다
+    NetworkManager::Poll();
 
     float deltaMs = sceneChanged ? 0.0f : Time::DeltaMs();
     if (sceneChanged) sFixedAccumulatorMs = 0.0f;
