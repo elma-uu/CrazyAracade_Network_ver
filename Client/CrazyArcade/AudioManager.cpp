@@ -1,5 +1,22 @@
 ﻿#include "AudioManager.h"
 #include <windows.h>
+
+// FMOD가 설치되지 않은 PC에서는 vcxproj가 HAS_FMOD를 정의하지 않는다.
+// 그때는 소리만 끄고 나머지 게임은 그대로 빌드·실행된다.
+#ifndef HAS_FMOD
+
+bool Audio::Initialize() {
+    OutputDebugStringA("[audio] FMOD 없이 빌드됨: 소리 없이 실행합니다\n");
+    return true;
+}
+void Audio::PlayEffect(const char*) {}
+void Audio::PlayMusic(const char*) {}
+void Audio::StopMusic() {}
+void Audio::Update() {}
+void Audio::Shutdown() {}
+
+#else
+
 #include <fmod.hpp>
 #include <fmod_errors.h>
 #include <map>
@@ -96,3 +113,5 @@ void Audio::Shutdown() {
         audioSystem = nullptr;
     }
 }
+
+#endif // HAS_FMOD
