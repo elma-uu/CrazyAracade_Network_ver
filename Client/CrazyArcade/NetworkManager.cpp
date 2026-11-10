@@ -265,6 +265,16 @@ void NetworkManager::SendEcho(const char* message)
     SendPacket(&p);
 }
 
+void NetworkManager::SendLogin(const std::string& nameUtf8)
+{
+    C2S_Login p = {};
+    p.size = sizeof(p);
+    p.type = C2S_LOGIN;
+    // 나머지는 0으로 채워져 있으므로 끝 '\0'이 항상 남는다
+    memcpy(p.name, nameUtf8.data(), std::min(nameUtf8.size(), sizeof(p.name) - 1));
+    SendPacket(&p);
+}
+
 bool NetworkManager::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);

@@ -27,6 +27,8 @@ public:
 
     // ---- C2S 보내기 ----
     static void SendEcho(const char* message);
+    // nameUtf8: UTF-8 닉네임, MAX_NAME_LEN-1 바이트까지 (넘치면 잘림)
+    static void SendLogin(const std::string& nameUtf8);
 
 private:
     static bool DoRecv();
