@@ -32,7 +32,8 @@ public:
 private:
     static bool DoRecv();
     static bool FlushSend();
-    static void ProcessPacket(unsigned char* packet);
+    // false = 크기가 맞지 않는 패킷 → 접속 종료
+    static bool ProcessPacket(unsigned char* packet);
 
     static SOCKET sSocket;
     static unsigned char sRecvBuf[RECV_BUF_SIZE];

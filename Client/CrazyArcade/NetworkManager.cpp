@@ -27,6 +27,33 @@ namespace {
         default:              return L"서버에 접속할 수 없습니다 (오류 " + std::to_wstring(err) + L")";
         }
     }
+
+    // S2C 패킷은 모두 고정 크기 struct이므로 type별 크기가 정확히 맞아야 한다.
+    // 검사하지 않으면 헤더만 온 패킷을 struct로 읽을 때 버퍼 밖을 읽고 쓰게 된다. 0 = 모르는 type
+    int ExpectedSize(unsigned char type)
+    {
+        switch (type) {
+        case S2C_ECHO:              return sizeof(S2C_Echo);
+        case S2C_LOGIN_RESULT:      return sizeof(S2C_LoginResult);
+        case S2C_ROOM_LIST:         return sizeof(S2C_RoomList);
+        case S2C_ROOM_ENTER_RESULT: return sizeof(S2C_RoomEnterResult);
+        case S2C_ROOM_INFO:         return sizeof(S2C_RoomInfo);
+        case S2C_PLAYER_LEAVE:      return sizeof(S2C_PlayerLeave);
+        case S2C_GAME_START:        return sizeof(S2C_GameStart);
+        case S2C_MAP_INFO:          return sizeof(S2C_MapInfo);
+        case S2C_MOVE:              return sizeof(S2C_Move);
+        case S2C_ATTACK:            return sizeof(S2C_Attack);
+        case S2C_EXPLODE:           return sizeof(S2C_Explode);
+        case S2C_BLOCK_BREAK:       return sizeof(S2C_BlockBreak);
+        case S2C_ITEM_SPAWN:        return sizeof(S2C_ItemSpawn);
+        case S2C_ITEM_GET:          return sizeof(S2C_ItemGet);
+        case S2C_HIT:               return sizeof(S2C_Hit);
+        case S2C_STAGE_STATE:       return sizeof(S2C_StageState);
+        case S2C_TRAIN:             return sizeof(S2C_Train);
+        case S2C_GAME_OVER:         return sizeof(S2C_GameOver);
+        default:                    return 0;
+        }
+    }
 }
 
 bool NetworkManager::Connect(const char* ip, unsigned short port)
@@ -34,6 +61,8 @@ bool NetworkManager::Connect(const char* ip, unsigned short port)
     Disconnect();
     sLastError.clear();
     sConnectionLost = false;
+    sLastEcho.clear();   // 다시 접속하면 에코 기록도 새로 센다
+    sEchoCount = 0;
 
     if (!sWsaStarted) {
         WSADATA wsa;
@@ -191,7 +220,7 @@ bool NetworkManager::DoRecv()
             if (packetSize > remain)
                 break;
 
-            ProcessPacket(packetStart);
+            if (!ProcessPacket(packetStart)) return false;   // 크기가 맞지 않는 패킷
             if (!IsConnected()) return false;   // 처리 중에 연결을 끊은 경우
             packetStart += packetSize;
             remain -= packetSize;
@@ -239,9 +268,23 @@ void NetworkManager::SendEcho(const char* message)
     SendPacket(&p);
 }
 
-void NetworkManager::ProcessPacket(unsigned char* packet)
+bool NetworkManager::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
+
+    int expected = ExpectedSize(header->type);
+    if (expected == 0) {   // 모르는 type: 버전이 다른 서버일 수 있으니 끊지 않고 무시
+        char msg[64];
+        sprintf_s(msg, "[net] 모르는 패킷 type=%d 무시\n", header->type);
+        OutputDebugStringA(msg);
+        return true;
+    }
+    if (header->size != expected) {
+        sLastError = L"서버 패킷 크기가 맞지 않습니다 (type=" + std::to_wstring(header->type) +
+            L", size=" + std::to_wstring(header->size) + L")";
+        return false;
+    }
+
     switch (header->type) {
     case S2C_ECHO: {
         auto p = reinterpret_cast<S2C_Echo*>(packet);
@@ -253,9 +296,10 @@ void NetworkManager::ProcessPacket(unsigned char* packet)
     }
     default: {
         char msg[64];
-        sprintf_s(msg, "[net] 처리하지 않는 패킷 type=%d\n", header->type);
+        sprintf_s(msg, "[net] 아직 처리하지 않는 패킷 type=%d\n", header->type);
         OutputDebugStringA(msg);
         break;
     }
     }
+    return true;
 }
