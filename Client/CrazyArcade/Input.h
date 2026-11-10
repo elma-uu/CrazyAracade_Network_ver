@@ -24,9 +24,20 @@ public:
     static POINT GetMousePosition() { return sMousePos; }
     static bool IsMouseInClient();
 
+    // ---- 글자 입력 (닉네임 등) ----
+    // WndProc의 WM_CHAR에서 전달. 키 반복·한글 조합 결과까지 그대로 들어온다
+    static void OnCharMessage(wchar_t ch);
+    // 이번 프레임에 입력된 글자들 ('\b' 백스페이스, '\r' 엔터, '\t' 탭 포함)
+    static const std::wstring& GetTypedText() { return sTypedText; }
+    // 입력칸이 있는 화면에서만 켠다: IME(한글 입력)를 켜고 끔.
+    // 게임 중에는 한글 IME가 WASD를 가로채지 않도록 꺼 둔다
+    static void SetTextInputEnabled(bool enabled);
+
 private:
     static HWND sHwnd;
     static KeyState sKeys[256];
     static bool sLatched[256];
     static POINT sMousePos;
+    static std::wstring sPendingText;   // 프레임 사이에 WM_CHAR로 쌓인 글자
+    static std::wstring sTypedText;     // 이번 프레임에 보여 줄 글자
 };

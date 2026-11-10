@@ -168,6 +168,9 @@ LRESULT CALLBACK Game::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
     case WM_SYSKEYDOWN:
         Input::OnKeyMessage(wParam);
         break;
+    case WM_CHAR:
+        Input::OnCharMessage(static_cast<wchar_t>(wParam));
+        break;
     case WM_KILLFOCUS:
         Input::Clear();
         break;

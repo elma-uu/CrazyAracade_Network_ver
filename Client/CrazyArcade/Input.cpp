@@ -1,9 +1,13 @@
 ﻿#include "Input.h"
+#include <imm.h>
+#pragma comment(lib, "imm32.lib")
 
 HWND Input::sHwnd = nullptr;
 KeyState Input::sKeys[256] = {};
 bool Input::sLatched[256] = {};
 POINT Input::sMousePos = {};
+std::wstring Input::sPendingText;
+std::wstring Input::sTypedText;
 
 void Input::Initialize(HWND hwnd)
 {
@@ -22,6 +26,21 @@ void Input::Clear()
         sKeys[vk] = KeyState::None;
         sLatched[vk] = false;
     }
+    sPendingText.clear();
+    sTypedText.clear();
+}
+
+void Input::OnCharMessage(wchar_t ch)
+{
+    sPendingText.push_back(ch);
+}
+
+void Input::SetTextInputEnabled(bool enabled)
+{
+    if (!sHwnd) return;
+    if (enabled) ImmAssociateContextEx(sHwnd, nullptr, IACE_DEFAULT);   // 창 기본 IME 다시 연결
+    else         ImmAssociateContext(sHwnd, nullptr);                  // IME 끄기
+    sPendingText.clear();
 }
 
 void Input::Update()
@@ -40,6 +59,9 @@ void Input::Update()
 
     POINT pos;
     if (GetCursorPos(&pos) && ScreenToClient(sHwnd, &pos)) sMousePos = pos;
+
+    sTypedText.swap(sPendingText);
+    sPendingText.clear();
 }
 
 bool Input::IsMouseInClient()
