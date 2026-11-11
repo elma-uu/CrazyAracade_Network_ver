@@ -162,16 +162,22 @@ void LobbyScene::Update(float)
 
     // (F5는 에코 테스트 접속 키라 새로고침에 쓰지 않는다)
     if (Input::GetKeyDown(VK_RETURN)) TryEnter();
-    if (!Input::GetKeyDown(VK_LBUTTON) || !Input::IsMouseInClient()) return;
 
     // 화면(1500x900) 좌표 → 캔버스(800x600) 좌표
     POINT m = Input::GetMousePosition();
     POINT p = { m.x * kCanvasW / Config::ScreenWidth, m.y * kCanvasH / Config::ScreenHeight };
 
-    for (int i = 0; i < MAX_ROOM; ++i) {
-        RECT rc = RoomRect(i);
-        if (PtInRect(&rc, p)) { SelectRoom(i); return; }
+    // 마우스가 올라간 방 = 노란 테두리
+    mHover = -1;
+    if (Input::IsMouseInClient()) {
+        for (int i = 0; i < MAX_ROOM; ++i) {
+            RECT rc = RoomRect(i);
+            if (PtInRect(&rc, p)) { mHover = i; break; }
+        }
     }
+
+    if (!Input::GetKeyDown(VK_LBUTTON) || !Input::IsMouseInClient()) return;
+    if (mHover >= 0) { SelectRoom(mHover); return; }
     RECT refresh = Box(345, 62, 98, 20);
     RECT quick = Box(647, 429, 122, 45);
     RECT enter = Box(514, 495, 188, 53);
@@ -301,8 +307,11 @@ void LobbyScene::DrawRooms(HDC c) const
         std::wstring count = std::to_wstring(r.players) + L"/" + std::to_wstring(MAX_ROOM_PLAYER);
         DrawDigits(c, DigitStyle::Green, count, barX + barW - 3 - DigitsWidth(DigitStyle::Green, count), statusY + 3);
 
-        if (i == mSelected)
+        // 마우스가 올라간 방은 노란 테두리, 골라 둔 방은 (마우스가 다른 곳에 있을 때) 옅은 하늘색 테두리
+        if (i == mHover)
             Gfx::DrawRoundFrame(c, Box(L - 3, tileY - 2, 104, 145), 8, RGB(0xff, 0xe1, 0x4d), 2);
+        else if (i == mSelected)
+            Gfx::DrawRoundFrame(c, Box(L - 3, tileY - 2, 104, 145), 8, RGB(0x9f, 0xe8, 0xff), 2);
     }
 }
 

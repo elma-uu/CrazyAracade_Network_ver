@@ -34,6 +34,7 @@ private:
     HGDIOBJ mOldCanvas = nullptr;
 
     int mSelected = -1;   // 고른 방 index (0~7), -1 = 없음
+    int mHover = -1;      // 마우스가 올라간 방 index, -1 = 없음
     struct LogLine { std::wstring text; COLORREF color; };
     std::vector<LogLine> mLog;
 };
