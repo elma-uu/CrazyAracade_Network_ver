@@ -168,8 +168,48 @@ void GameClient::OnRoomList(const S2C_RoomList* p)
 void GameClient::RequestJoinRoom(int roomId)
 {
     sJoinFailReason.clear();
+    if (sLobbyPreview) { BuildPreviewRoom(roomId); return; }
     sJoinState = JoinState::Waiting;
     NetworkManager::SendJoinRoom(roomId);
+}
+
+void GameClient::BuildPreviewRoom(int roomId)
+{
+    // 미리보기: 로비 샘플 목록의 그 방에 내가 들어간 것처럼 방 상태를 만든다
+    const RoomView& r = sRooms[std::clamp(roomId - 1, 0, MAX_ROOM - 1)];
+    sRoom = RoomState{};
+    sRoom.roomId = roomId;
+    sRoom.map = (r.players > 0) ? r.map : MAP_FOREST;
+    sRoom.hostSlot = 0;
+
+    static const wchar_t* const others[] = { L"규동", L"형민", L"서연", L"민수", L"하늘", L"지은" };
+    int slot = 0, other = 0;
+    for (int i = 0; i < r.players && slot < MAX_ROOM_PLAYER - 1; ++i, ++slot) {
+        RoomPlayerView& p = sRoom.players[slot];
+        p.exist = true;
+        p.id = 1000 + slot;
+        if (i == 0) {
+            p.name = r.host;   // 첫 자리가 방장
+        } else {
+            while (r.host == others[other % 6]) ++other;
+            p.name = others[other++ % 6];
+        }
+        p.color = (slot * 3) % 7;          // 서로 다른 색 (0, 3, 6)
+        p.ready = (i != 0) && (i % 2 == 1);  // 방장 빼고 일부만 준비
+    }
+
+    // 남은 첫 자리에 나, 아직 아무도 안 쓴 첫 번째 색
+    RoomPlayerView& me = sRoom.players[slot];
+    me.exist = true;
+    me.id = (sMyId >= 0) ? sMyId : 1;
+    me.name = sMyName;
+    for (int color = 0; color < 7; ++color) {
+        bool used = false;
+        for (int i = 0; i < slot; ++i) used |= sRoom.players[i].color == color;
+        if (!used) { me.color = color; break; }
+    }
+    sMySlot = slot;
+    sJoinState = JoinState::Joined;
 }
 
 void GameClient::LeaveRoom()

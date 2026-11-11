@@ -69,7 +69,7 @@ public:
         RoomPlayerView players[MAX_ROOM_PLAYER];
     };
     enum class JoinState { None, Waiting, Joined, Failed };
-    // C2S_JoinRoom을 보내고 S2C_RoomEnterResult를 기다린다
+    // C2S_JoinRoom을 보내고 S2C_RoomEnterResult를 기다린다 (미리보기면 샘플 방에 바로 들어감)
     static void RequestJoinRoom(int roomId);
     static JoinState GetJoinState() { return sJoinState; }
     static const std::wstring& JoinFailReason() { return sJoinFailReason; }
@@ -90,6 +90,7 @@ public:
     static void OnPlayerLeave(const S2C_PlayerLeave* p);
 
 private:
+    static void BuildPreviewRoom(int roomId);
     static void UpdateEchoTest();
     static void RenderEchoTest(HDC hdc);
 

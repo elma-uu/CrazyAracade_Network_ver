@@ -45,6 +45,9 @@ void LobbyScene::Update(float)
         return;
     }
 
+    UpdateJoin();
+    if (GameClient::GetJoinState() == GameClient::JoinState::Joined) return;
+
     // (F5는 에코 테스트 접속 키라 새로고침에 쓰지 않는다)
     if (Input::GetKeyDown(VK_RETURN)) TryEnter();
 
@@ -97,27 +100,45 @@ void LobbyScene::Refresh()
 
 void LobbyScene::QuickEnter()
 {
-    // 사람이 있는 대기 방 먼저, 없으면 빈 방
+    // 사람이 남아 있는 대기 방 중 사람이 가장 많은 방으로 바로 들어간다. 없으면 빈 방
     int pick = -1;
-    for (int i = 0; i < MAX_ROOM && pick < 0; ++i) {
+    for (int i = 0; i < MAX_ROOM; ++i) {
         const GameClient::RoomView& r = GameClient::Room(i);
-        if (!IsEmpty(r) && CanEnter(r)) pick = i;
+        if (IsEmpty(r) || !CanEnter(r)) continue;
+        if (pick < 0 || r.players > GameClient::Room(pick).players) pick = i;
     }
     for (int i = 0; i < MAX_ROOM && pick < 0; ++i)
         if (IsEmpty(GameClient::Room(i))) pick = i;
 
     if (pick < 0) { mLog.Add(L"[알림] 들어갈 수 있는 방이 없어요.", Pink); return; }
-    SelectRoom(pick);
+    mSelected = pick;
     TryEnter();
 }
 
 void LobbyScene::TryEnter()
 {
+    if (GameClient::GetJoinState() == GameClient::JoinState::Waiting) return;   // 이미 입장 요청 중
     if (mSelected < 0) { mLog.Add(L"[알림] 먼저 방을 골라 주세요.", Pink); return; }
     const GameClient::RoomView& r = GameClient::Room(mSelected);
     if (!CanEnter(r)) { mLog.Add(L"[알림] 이 방에는 들어갈 수 없어요.", Pink); return; }
-    // TODO: C2S_JoinRoom / S2C_RoomEnterResult (형민 담당 패킷)가 들어오면 여기서 보낸다
-    GameClient::ShowNotice(L"방 입장은 C2S_JoinRoom 연결 후에 됩니다");
+    mLog.Add(L"[알림] " + RoomNumber(r.id) + L"번 방에 들어가는 중...", Yellow);
+    GameClient::RequestJoinRoom(r.id);
+}
+
+void LobbyScene::UpdateJoin()
+{
+    switch (GameClient::GetJoinState()) {
+    case GameClient::JoinState::Joined:
+        SceneManager::ChangeScene(SceneType::Room);
+        break;
+    case GameClient::JoinState::Failed:
+        mLog.Add(L"[알림] " + GameClient::JoinFailReason(), Pink);
+        GameClient::ClearJoinFailure();
+        GameClient::RequestRoomList();   // 그사이 방 상태가 바뀌었을 수 있다
+        break;
+    default:
+        break;
+    }
 }
 
 void LobbyScene::Render(HDC hdc)

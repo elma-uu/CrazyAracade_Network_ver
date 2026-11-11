@@ -22,8 +22,9 @@ private:
     static RECT RoomRect(int index);
     void SelectRoom(int index);
     void Refresh();       // 새로고침 버튼
-    void QuickEnter();    // 빠른 입장: 사람 있는 대기 방 → 빈 방 순서로 골라 입장
-    void TryEnter();      // 입장 버튼 / Enter
+    void QuickEnter();    // 빠른 입장: 사람이 남아 있는 대기 방(가장 많은 방)에 바로 입장, 없으면 빈 방
+    void TryEnter();      // 입장 버튼 / Enter: C2S_JoinRoom
+    void UpdateJoin();    // 입장 결과 확인 → 대기방으로 / 실패 안내
 
     Ui::Canvas mCanvas;
     Ui::ChatLog mLog;
