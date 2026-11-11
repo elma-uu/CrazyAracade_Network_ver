@@ -27,13 +27,21 @@ void LobbyScene::OnEnter()
         GameClient::ClearRoomList();
         GameClient::RequestRoomList();
     }
+    const bool firstVisit = GameClient::Chat(GameClient::ChatChannel::Lobby).empty();
     Log(L"[알림] 로비에 들어왔습니다.", Yellow);
-    if (GameClient::IsLobbyPreview()) Log(L"[알림] 미리보기: 서버 없이 샘플 방 목록을 보여 줍니다.", Dim);
+    if (GameClient::IsLobbyPreview() && firstVisit) Log(L"[알림] 미리보기: 서버 없이 샘플 방 목록을 보여 줍니다.", Dim);
+}
+
+void LobbyScene::OnExit()
+{
+    mInput.SetFocus(false);   // 한글 IME 끄기
 }
 
 void LobbyScene::Update(float)
 {
     if (Input::GetKeyDown(VK_ESCAPE)) {
+        // 채팅 입력 중이면 입력만 끝낸다
+        if (mInput.Focused()) { mInput.SetFocus(false); return; }
         if (GameClient::IsLobbyPreview()) {
             GameClient::EndLobbyPreview();
             GameClient::ResetLogin();
@@ -54,11 +62,14 @@ void LobbyScene::Update(float)
     UpdateJoin();
     if (GameClient::GetJoinState() == GameClient::JoinState::Joined) return;
 
-    // (F5는 에코 테스트 접속 키라 새로고침에 쓰지 않는다)
-    if (Input::GetKeyDown(VK_RETURN)) TryEnter();
-
     // 화면(1500x900) 좌표 → 캔버스(800x600) 좌표
     POINT p = ToCanvas(Input::GetMousePosition());
+
+    // 채팅 입력 (Enter는 입력 중이면 보내기, 아니면 입장)
+    std::wstring chat;
+    if (mInput.Update(p, Input::IsMouseInClient(), chat)) GameClient::SendChat(GameClient::ChatChannel::Lobby, chat);
+    // (F5는 에코 테스트 접속 키라 새로고침에 쓰지 않는다)
+    if (Input::GetKeyDown(VK_RETURN) && !mInput.Focused()) TryEnter();
 
     // 마우스가 올라간 방 = 노란 테두리
     mHover = -1;
@@ -160,6 +171,7 @@ void LobbyScene::Render(HDC hdc)
     DrawSelectedRoom(c);
     DrawButtons(c);
     mChat.Draw(c, GameClient::Chat(GameClient::ChatChannel::Lobby), L"전체 채팅");
+    mInput.Draw(c);
     Gfx::DrawPixelText(c, Box(32, 3, 400, 23), L"[공지] 게임 중이거나 꽉 찬 방(X 칸)은 들어갈 수 없어요",
         Yellow, Gfx::Align::Left);
 

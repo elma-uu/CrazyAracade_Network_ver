@@ -77,6 +77,11 @@ void RoomScene::OnEnter()
     Log(L"[알림] " + RoomNumber(GameClient::CurrentRoom().roomId) + L"번 방에 들어왔습니다.", Yellow);
 }
 
+void RoomScene::OnExit()
+{
+    mInput.SetFocus(false);   // 한글 IME 끄기
+}
+
 void RoomScene::Leave()
 {
     GameClient::LeaveRoom();
@@ -93,7 +98,12 @@ void RoomScene::Update(float)
         SceneManager::ChangeScene(SceneType::Lobby);
         return;
     }
-    if (Input::GetKeyDown(VK_ESCAPE)) { Leave(); return; }
+    if (Input::GetKeyDown(VK_ESCAPE)) {
+        // 채팅 입력 중이면 입력만 끝낸다
+        if (mInput.Focused()) mInput.SetFocus(false);
+        else Leave();
+        return;
+    }
 
     // 마우스가 올라간 칸 = 노란 테두리
     POINT p = ToCanvas(Input::GetMousePosition());
@@ -109,7 +119,10 @@ void RoomScene::Update(float)
     LogRoomChanges();
     mChat.Update(GameClient::Chat(GameClient::ChatChannel::Room), p, inClient);
 
-    if (Input::GetKeyDown(VK_RETURN)) PressStart();
+    // 채팅 입력 (Enter는 입력 중이면 보내기, 아니면 시작/준비)
+    std::wstring chat;
+    if (mInput.Update(p, inClient, chat)) GameClient::SendChat(GameClient::ChatChannel::Room, chat);
+    if (Input::GetKeyDown(VK_RETURN) && !mInput.Focused()) PressStart();
     if (!Input::GetKeyDown(VK_LBUTTON) || !inClient) return;
     if (PtInRect(&kPowerButton, p)) { Game::Quit(); return; }
     if (mHoverButton == 0) { Leave(); return; }
@@ -173,6 +186,7 @@ void RoomScene::Render(HDC hdc)
     DrawRoomInfo(c);
     DrawButtons(c);
     mChat.Draw(c, GameClient::Chat(GameClient::ChatChannel::Room), L"방 채팅");
+    mInput.Draw(c);
 
     const wchar_t* notice = GameClient::AmIHost()
         ? L"[알림] 모두 준비하면 시작을 누르세요. 맵은 방장이 골라요"

@@ -73,6 +73,20 @@ namespace Ui {
         int mDragOffset = 0;
     };
 
+    // 채팅 입력칸 (아래 긴 칸 + 오른쪽 보내기 버튼). 칸을 누르면 입력, Enter·보내기 버튼으로 보낸다.
+    // 입력 중에는 한글 IME를 켜고, 칸 밖을 누르거나 ESC면 입력을 끝낸다
+    class ChatInput {
+    public:
+        // 보낼 글이 생긴 프레임에 true + out에 담는다
+        bool Update(POINT mouse, bool mouseInClient, std::wstring& out);
+        bool Focused() const { return mFocused; }
+        void SetFocus(bool on);
+        void Draw(HDC c) const;
+    private:
+        std::wstring mText;
+        bool mFocused = false;
+    };
+
     // 800x600 캔버스: Begin으로 그리고 Present로 화면 전체에 늘려 찍는다
     class Canvas {
     public:

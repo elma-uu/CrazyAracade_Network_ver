@@ -8,6 +8,7 @@
 class LobbyScene : public Scene {
 public:
     void OnEnter() override;
+    void OnExit() override;
     void Update(float deltaTime) override;
     void Render(HDC hdc) override;
 
@@ -28,6 +29,7 @@ private:
 
     Ui::Canvas mCanvas;
     Ui::ChatView mChat;
+    Ui::ChatInput mInput;
     int mSelected = -1;   // 고른 방 index (0~7), -1 = 없음
     int mHover = -1;      // 마우스가 올라간 방 index, -1 = 없음
 };

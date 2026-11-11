@@ -171,6 +171,64 @@ void Ui::ChatView::Draw(HDC c, const std::vector<GameClient::ChatLine>& lines, c
     Gfx::DrawOpaque(c, BitmapID::LobbyTiles, kThumbX, ThumbY(count), kThumbSize, kThumbSize, 202, 0, kThumbSize, kThumbSize);
 }
 
+namespace {
+    const RECT kInputField = { 28, 521, 395, 546 };
+    const RECT kInputText = { 36, 522, 388, 545 };
+    const RECT kSendButton = { 399, 521, 444, 546 };
+    const RECT kChatPanel = { 20, 388, 450, 549 };
+    constexpr size_t kMaxChatChars = 60;
+
+    std::wstring Trim(const std::wstring& s)
+    {
+        size_t a = s.find_first_not_of(L' ');
+        if (a == std::wstring::npos) return {};
+        size_t b = s.find_last_not_of(L' ');
+        return s.substr(a, b - a + 1);
+    }
+}
+
+void Ui::ChatInput::SetFocus(bool on)
+{
+    if (mFocused == on) return;
+    mFocused = on;
+    Input::SetTextInputEnabled(on);
+}
+
+bool Ui::ChatInput::Update(POINT p, bool inClient, std::wstring& out)
+{
+    bool submit = false;
+    if (Input::GetKeyDown(VK_LBUTTON) && inClient) {
+        if (PtInRect(&kInputField, p)) SetFocus(true);
+        else if (PtInRect(&kSendButton, p)) submit = true;
+        else if (!PtInRect(&kChatPanel, p)) SetFocus(false);   // 채팅 칸(스크롤바 등)을 누를 때는 입력 유지
+    }
+    if (mFocused) {
+        for (wchar_t ch : Input::GetTypedText()) {
+            if (ch == L'\b') { if (!mText.empty()) mText.pop_back(); }
+            else if (ch == L'\r') submit = true;
+            else if (ch >= 32 && mText.size() < kMaxChatChars) mText += ch;
+        }
+    }
+    if (!submit) return false;
+    out = Trim(mText);
+    mText.clear();
+    return !out.empty();
+}
+
+void Ui::ChatInput::Draw(HDC c) const
+{
+    if (mText.empty() && !mFocused) {
+        Gfx::DrawPixelText(c, kInputText, L"여기를 눌러 채팅 입력 · Enter로 보내기", Dim, Gfx::Align::Left);
+        return;
+    }
+    // 칸보다 길면 뒷부분만 보여 준다
+    const int maxW = (kInputText.right - kInputText.left) - 12;
+    std::wstring shown = mText;
+    while (!shown.empty() && Gfx::PixelTextWidth(shown) > maxW) shown.erase(0, 1);
+    const bool caretOn = mFocused && (GetTickCount64() / 500) % 2 == 0;
+    Gfx::DrawPixelText(c, kInputText, shown + (caretOn ? L"|" : L""), White, Gfx::Align::Left);
+}
+
 Ui::Canvas::~Canvas()
 {
     if (mDC) {

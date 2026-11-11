@@ -94,6 +94,8 @@ public:
     static void AddChat(ChatChannel channel, const std::wstring& text, COLORREF color);
     static const std::vector<ChatLine>& Chat(ChatChannel channel);
     static void ClearChat(ChatChannel channel);
+    // 내가 쓴 채팅. TODO: 서버 연동 (지금은 내 화면에만 '닉네임 : 내용'으로 쌓는다)
+    static void SendChat(ChatChannel channel, const std::wstring& text);
 
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);

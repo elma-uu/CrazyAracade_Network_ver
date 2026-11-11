@@ -183,6 +183,12 @@ const std::vector<GameClient::ChatLine>& GameClient::Chat(ChatChannel channel)
     return (channel == ChatChannel::Lobby) ? sLobbyChat : sRoomChat;
 }
 
+void GameClient::SendChat(ChatChannel channel, const std::wstring& text)
+{
+    // TODO: 채팅 패킷이 생기면 여기서 서버로 보내고, 서버가 돌려준 것을 AddChat 한다
+    AddChat(channel, sMyName + L" : " + text, RGB(255, 255, 255));
+}
+
 void GameClient::ClearChat(ChatChannel channel)
 {
     ((channel == ChatChannel::Lobby) ? sLobbyChat : sRoomChat).clear();
