@@ -191,6 +191,29 @@ void Gfx::DrawRoundFrame(HDC hdc, const RECT& rc, int radius, COLORREF color, in
     DeleteObject(pen);
 }
 
+int Gfx::PixelTextWidth(const std::wstring& text, int size)
+{
+    if (text.empty()) return 0;
+    HDC dc = MemDC();
+    HGDIOBJ old = SelectObject(dc, PixelFont(size));
+    SIZE ext = {};
+    GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &ext);
+    SelectObject(dc, old);
+    return ext.cx;
+}
+
+int Gfx::PixelTextFit(const std::wstring& text, int maxWidth, int size)
+{
+    if (text.empty()) return 0;
+    HDC dc = MemDC();
+    HGDIOBJ old = SelectObject(dc, PixelFont(size));
+    int fit = 0;
+    SIZE ext = {};
+    GetTextExtentExPointW(dc, text.c_str(), static_cast<int>(text.size()), maxWidth, &fit, nullptr, &ext);
+    SelectObject(dc, old);
+    return fit;
+}
+
 void Gfx::DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLORREF color,
     Align align, int size, COLORREF outline, int outlineWidth)
 {

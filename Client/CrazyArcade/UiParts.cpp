@@ -1,4 +1,5 @@
 #include "UiParts.h"
+#include "Input.h"
 #include <cstdio>
 
 namespace {
@@ -84,19 +85,90 @@ void Ui::DrawKeyValue(HDC c, const wchar_t* key, const std::wstring& value,
     Gfx::DrawPixelText(c, { valueX, y, right, y + 16 }, value, White, Gfx::Align::Left);
 }
 
-void Ui::ChatLog::Add(const std::wstring& text, COLORREF color)
-{
-    mLines.push_back({ text, color });
-    constexpr size_t kMaxLines = 5;
-    if (mLines.size() > kMaxLines) mLines.erase(mLines.begin());
+namespace {
+    // 채팅 칸 (lobby_bg / room_bg 기준)
+    constexpr int kChatX = 30, kChatRight = 422;
+    constexpr int kChatTop = 414, kChatLineH = 19, kChatRows = 5;
+    const RECT kScrollUp = { 425, 412, 444, 429 };
+    const RECT kScrollDown = { 425, 495, 444, 513 };
+    constexpr int kThumbX = 426, kThumbSize = 17;
+    constexpr int kThumbTop = 429, kThumbBottom = 477;   // 손잡이 윗변이 움직이는 범위
+    const RECT kTrack = { 426, 429, 443, 495 };
 }
 
-void Ui::ChatLog::Draw(HDC c) const
+std::vector<Ui::ChatView::VisualLine> Ui::ChatView::Wrap(const std::vector<GameClient::ChatLine>& lines)
 {
-    for (size_t k = 0; k < mLines.size(); ++k) {
-        int y = 414 + static_cast<int>(k) * 19;
-        Gfx::DrawPixelText(c, { 30, y, 420, y + 19 }, mLines[k].text, mLines[k].color, Gfx::Align::Left);
+    std::vector<VisualLine> out;
+    const int maxW = kChatRight - kChatX - 4;   // 테두리 여유
+    for (const auto& line : lines) {
+        std::wstring rest = line.text;
+        while (!rest.empty()) {
+            int fit = std::max(1, Gfx::PixelTextFit(rest, maxW));
+            out.push_back({ rest.substr(0, fit), line.color });
+            rest.erase(0, fit);
+        }
     }
+    return out;
+}
+
+int Ui::ChatView::MaxScroll(int visualCount) const
+{
+    return std::max(0, visualCount - kChatRows);
+}
+
+int Ui::ChatView::ThumbY(int visualCount) const
+{
+    int maxScroll = MaxScroll(visualCount);
+    if (maxScroll == 0) return kThumbBottom;   // 넘치지 않으면 맨 아래 (최신)
+    return kThumbBottom - (kThumbBottom - kThumbTop) * mScroll / maxScroll;
+}
+
+void Ui::ChatView::Update(const std::vector<GameClient::ChatLine>& lines, POINT p, bool inClient)
+{
+    const int count = static_cast<int>(Wrap(lines).size());
+    // 위로 올려 보고 있을 때 새 줄이 오면 보던 줄이 그대로 보이게
+    if (mScroll > 0 && count > mLastCount) mScroll += count - mLastCount;
+    mLastCount = count;
+    const int maxScroll = MaxScroll(count);
+    mScroll = std::clamp(mScroll, 0, maxScroll);
+
+    if (mDragging) {
+        if (!Input::GetKey(VK_LBUTTON)) { mDragging = false; return; }
+        if (maxScroll > 0) {
+            int y = std::clamp(static_cast<int>(p.y) - mDragOffset, kThumbTop, kThumbBottom);
+            mScroll = (kThumbBottom - y) * maxScroll / (kThumbBottom - kThumbTop);
+        }
+        return;
+    }
+    if (!Input::GetKeyDown(VK_LBUTTON) || !inClient) return;
+
+    const int thumbY = ThumbY(count);
+    RECT thumb = { kThumbX, thumbY, kThumbX + kThumbSize, thumbY + kThumbSize };
+    if (PtInRect(&kScrollUp, p)) mScroll = std::min(mScroll + 1, maxScroll);
+    else if (PtInRect(&kScrollDown, p)) mScroll = std::max(mScroll - 1, 0);
+    else if (PtInRect(&thumb, p)) { mDragging = true; mDragOffset = p.y - thumbY; }
+    else if (PtInRect(&kTrack, p)) {
+        // 손잡이 위 빈 곳 = 한 화면 위로, 아래 = 한 화면 아래로
+        if (p.y < thumbY) mScroll = std::min(mScroll + kChatRows, maxScroll);
+        else mScroll = std::max(mScroll - kChatRows, 0);
+    }
+}
+
+void Ui::ChatView::Draw(HDC c, const std::vector<GameClient::ChatLine>& lines, const wchar_t* title) const
+{
+    Gfx::DrawPixelText(c, { 22, 389, 424, 409 }, title, Label);
+
+    const std::vector<VisualLine> visual = Wrap(lines);
+    const int count = static_cast<int>(visual.size());
+    const int scroll = std::clamp(mScroll, 0, MaxScroll(count));
+    const int first = std::max(0, count - kChatRows - scroll);
+    for (int k = 0; k < kChatRows && first + k < count; ++k) {
+        int y = kChatTop + k * kChatLineH;
+        const VisualLine& v = visual[first + k];
+        Gfx::DrawPixelText(c, { kChatX, y, kChatRight, y + kChatLineH }, v.text, v.color, Gfx::Align::Left);
+    }
+    // 스크롤 손잡이 (lobby_tiles.bmp 202,0)
+    Gfx::DrawOpaque(c, BitmapID::LobbyTiles, kThumbX, ThumbY(count), kThumbSize, kThumbSize, 202, 0, kThumbSize, kThumbSize);
 }
 
 Ui::Canvas::~Canvas()

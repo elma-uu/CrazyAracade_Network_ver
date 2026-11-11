@@ -27,7 +27,7 @@ private:
     Ui::Canvas mCanvas;
     GameClient::RoomState mPrev;   // 지난 프레임 방 상태 (변화 알림용)
     bool mHasPrev = false;
-    Ui::ChatLog mLog;
+    Ui::ChatView mChat;
     int mHoverMap = -1;      // 0~2 = 숲·도시·얼음
     int mHoverColor = -1;    // 0~6
     int mHoverButton = -1;   // 0 = 방 나가기, 1 = 시작/준비

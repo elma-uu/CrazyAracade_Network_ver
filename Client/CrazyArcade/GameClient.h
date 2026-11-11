@@ -86,6 +86,15 @@ public:
     static void SetReady(bool ready);
     static void StartGame();             // 방장만
 
+    // ---- 채팅 ----
+    // 로비 채팅 = 접속한 모든 사람, 방 채팅 = 같은 방 사람만. 안내 문구([알림])도 같은 칸에 쌓인다.
+    // 아직 서버 연동 전이라 내 화면에만 쌓인다
+    enum class ChatChannel { Lobby, Room };
+    struct ChatLine { std::wstring text; COLORREF color; };
+    static void AddChat(ChatChannel channel, const std::wstring& text, COLORREF color);
+    static const std::vector<ChatLine>& Chat(ChatChannel channel);
+    static void ClearChat(ChatChannel channel);
+
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);
     static void OnLoginResult(const S2C_LoginResult* p);
@@ -116,6 +125,9 @@ private:
     static std::wstring sJoinFailReason;
     static RoomState sRoom;
     static int sMySlot;
+
+    static std::vector<ChatLine> sLobbyChat;
+    static std::vector<ChatLine> sRoomChat;
 
     static std::wstring sNotice;
     static ULONGLONG sNoticeUntil;

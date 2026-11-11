@@ -27,7 +27,7 @@ private:
     void UpdateJoin();    // 입장 결과 확인 → 대기방으로 / 실패 안내
 
     Ui::Canvas mCanvas;
-    Ui::ChatLog mLog;
+    Ui::ChatView mChat;
     int mSelected = -1;   // 고른 방 index (0~7), -1 = 없음
     int mHover = -1;      // 마우스가 올라간 방 index, -1 = 없음
 };

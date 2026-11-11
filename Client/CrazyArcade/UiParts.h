@@ -2,6 +2,7 @@
 #include "Common.h"
 #include "Gfx.h"
 #include "protocol.h"
+#include "GameClient.h"
 
 // 로비·대기방이 같이 쓰는 그리기 조각.
 // 두 화면 모두 원작 UI 크기(800x600) 캔버스에 그린 뒤 전체 화면으로 늘린다.
@@ -54,14 +55,22 @@ namespace Ui {
     void DrawKeyValue(HDC c, const wchar_t* key, const std::wstring& value,
         int x, int y, int colonX, int valueX, int right);
 
-    // 왼쪽 아래 채팅 칸에 쌓이는 안내 문구 (최근 5줄)
-    class ChatLog {
+    // 왼쪽 아래 채팅 칸: 5줄씩 보이고, 오른쪽 스크롤바(화살표·손잡이 끌기·빈 곳 클릭)로 지난 내역을 본다.
+    // 긴 줄은 칸 폭에 맞춰 자동으로 줄바꿈. 맨 아래를 보고 있으면 새 줄이 오면 따라 내려간다
+    class ChatView {
     public:
-        void Add(const std::wstring& text, COLORREF color);
-        void Draw(HDC c) const;
+        void Update(const std::vector<GameClient::ChatLine>& lines, POINT mouse, bool mouseInClient);
+        void Draw(HDC c, const std::vector<GameClient::ChatLine>& lines, const wchar_t* title) const;
     private:
-        struct Line { std::wstring text; COLORREF color; };
-        std::vector<Line> mLines;
+        struct VisualLine { std::wstring text; COLORREF color; };
+        static std::vector<VisualLine> Wrap(const std::vector<GameClient::ChatLine>& lines);
+        int MaxScroll(int visualCount) const;
+        int ThumbY(int visualCount) const;
+
+        int mScroll = 0;          // 맨 아래에서 몇 줄 올라가 있는지
+        int mLastCount = 0;       // 지난 프레임 줄 수 (새 줄이 오면 보던 위치 유지)
+        bool mDragging = false;
+        int mDragOffset = 0;
     };
 
     // 800x600 캔버스: Begin으로 그리고 Present로 화면 전체에 늘려 찍는다

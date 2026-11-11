@@ -9,6 +9,12 @@
 using namespace Ui;
 
 namespace {
+    // 안내 문구도 채팅 칸에 쌓는다 (전체 채팅)
+    void Log(const std::wstring& text, COLORREF color)
+    {
+        GameClient::AddChat(GameClient::ChatChannel::Lobby, text, color);
+    }
+
     bool IsEmpty(const GameClient::RoomView& r) { return r.state == ROOM_EMPTY || r.players == 0; }
     bool CanEnter(const GameClient::RoomView& r)
     {
@@ -21,8 +27,8 @@ void LobbyScene::OnEnter()
         GameClient::ClearRoomList();
         GameClient::RequestRoomList();
     }
-    mLog.Add(L"[알림] 로비에 들어왔습니다.", Yellow);
-    if (GameClient::IsLobbyPreview()) mLog.Add(L"[알림] 미리보기: 서버 없이 샘플 방 목록을 보여 줍니다.", Dim);
+    Log(L"[알림] 로비에 들어왔습니다.", Yellow);
+    if (GameClient::IsLobbyPreview()) Log(L"[알림] 미리보기: 서버 없이 샘플 방 목록을 보여 줍니다.", Dim);
 }
 
 void LobbyScene::Update(float)
@@ -63,6 +69,8 @@ void LobbyScene::Update(float)
         }
     }
 
+    mChat.Update(GameClient::Chat(GameClient::ChatChannel::Lobby), p, Input::IsMouseInClient());
+
     if (!Input::GetKeyDown(VK_LBUTTON) || !Input::IsMouseInClient()) return;
     if (mHover >= 0) { SelectRoom(mHover); return; }
     RECT refresh = Box(345, 62, 98, 20);
@@ -87,15 +95,15 @@ void LobbyScene::SelectRoom(int index)
 {
     mSelected = index;
     const GameClient::RoomView& r = GameClient::Room(index);
-    if (CanEnter(r)) mLog.Add(L"[알림] " + RoomNumber(r.id) + L"번 방을 골랐습니다. 입장을 누르세요.", Yellow);
-    else mLog.Add(L"[알림] " + RoomNumber(r.id) + L"번 방은 " + (r.state == ROOM_PLAYING ? L"게임 중" : L"꽉 차서") +
+    if (CanEnter(r)) Log(L"[알림] " + RoomNumber(r.id) + L"번 방을 골랐습니다. 입장을 누르세요.", Yellow);
+    else Log(L"[알림] " + RoomNumber(r.id) + L"번 방은 " + (r.state == ROOM_PLAYING ? L"게임 중" : L"꽉 차서") +
         L" 들어갈 수 없어요.", Pink);
 }
 
 void LobbyScene::Refresh()
 {
     if (!GameClient::IsLobbyPreview()) GameClient::RequestRoomList();
-    mLog.Add(L"[알림] 방 목록을 새로 받았습니다.", Yellow);
+    Log(L"[알림] 방 목록을 새로 받았습니다.", Yellow);
 }
 
 void LobbyScene::QuickEnter()
@@ -110,7 +118,7 @@ void LobbyScene::QuickEnter()
     for (int i = 0; i < MAX_ROOM && pick < 0; ++i)
         if (IsEmpty(GameClient::Room(i))) pick = i;
 
-    if (pick < 0) { mLog.Add(L"[알림] 들어갈 수 있는 방이 없어요.", Pink); return; }
+    if (pick < 0) { Log(L"[알림] 들어갈 수 있는 방이 없어요.", Pink); return; }
     mSelected = pick;
     TryEnter();
 }
@@ -118,10 +126,10 @@ void LobbyScene::QuickEnter()
 void LobbyScene::TryEnter()
 {
     if (GameClient::GetJoinState() == GameClient::JoinState::Waiting) return;   // 이미 입장 요청 중
-    if (mSelected < 0) { mLog.Add(L"[알림] 먼저 방을 골라 주세요.", Pink); return; }
+    if (mSelected < 0) { Log(L"[알림] 먼저 방을 골라 주세요.", Pink); return; }
     const GameClient::RoomView& r = GameClient::Room(mSelected);
-    if (!CanEnter(r)) { mLog.Add(L"[알림] 이 방에는 들어갈 수 없어요.", Pink); return; }
-    mLog.Add(L"[알림] " + RoomNumber(r.id) + L"번 방에 들어가는 중...", Yellow);
+    if (!CanEnter(r)) { Log(L"[알림] 이 방에는 들어갈 수 없어요.", Pink); return; }
+    Log(L"[알림] " + RoomNumber(r.id) + L"번 방에 들어가는 중...", Yellow);
     GameClient::RequestJoinRoom(r.id);
 }
 
@@ -132,7 +140,7 @@ void LobbyScene::UpdateJoin()
         SceneManager::ChangeScene(SceneType::Room);
         break;
     case GameClient::JoinState::Failed:
-        mLog.Add(L"[알림] " + GameClient::JoinFailReason(), Pink);
+        Log(L"[알림] " + GameClient::JoinFailReason(), Pink);
         GameClient::ClearJoinFailure();
         GameClient::RequestRoomList();   // 그사이 방 상태가 바뀌었을 수 있다
         break;
@@ -151,7 +159,7 @@ void LobbyScene::Render(HDC hdc)
     DrawProfile(c);
     DrawSelectedRoom(c);
     DrawButtons(c);
-    mLog.Draw(c);
+    mChat.Draw(c, GameClient::Chat(GameClient::ChatChannel::Lobby), L"전체 채팅");
     Gfx::DrawPixelText(c, Box(32, 3, 400, 23), L"[공지] 게임 중이거나 꽉 찬 방(X 칸)은 들어갈 수 없어요",
         Yellow, Gfx::Align::Left);
 

@@ -18,6 +18,8 @@ GameClient::JoinState GameClient::sJoinState = GameClient::JoinState::None;
 std::wstring GameClient::sJoinFailReason;
 GameClient::RoomState GameClient::sRoom;
 int GameClient::sMySlot = -1;
+std::vector<GameClient::ChatLine> GameClient::sLobbyChat;
+std::vector<GameClient::ChatLine> GameClient::sRoomChat;
 std::wstring GameClient::sNotice;
 ULONGLONG GameClient::sNoticeUntil = 0;
 bool GameClient::sEchoTestVisible = false;
@@ -97,6 +99,8 @@ void GameClient::ResetLogin()
     sRoom = RoomState{};
     sMySlot = -1;
     sJoinState = JoinState::None;
+    ClearChat(ChatChannel::Room);
+    ClearChat(ChatChannel::Lobby);   // 로그아웃하면 로비 채팅도 비운다
 }
 
 void GameClient::OnLoginResult(const S2C_LoginResult* p)
@@ -166,6 +170,24 @@ void GameClient::OnRoomList(const S2C_RoomList* p)
     sHasRoomList = true;
 }
 
+void GameClient::AddChat(ChatChannel channel, const std::wstring& text, COLORREF color)
+{
+    std::vector<ChatLine>& log = (channel == ChatChannel::Lobby) ? sLobbyChat : sRoomChat;
+    log.push_back({ text, color });
+    constexpr size_t kMaxLines = 200;   // 오래된 줄부터 버린다
+    if (log.size() > kMaxLines) log.erase(log.begin(), log.begin() + (log.size() - kMaxLines));
+}
+
+const std::vector<GameClient::ChatLine>& GameClient::Chat(ChatChannel channel)
+{
+    return (channel == ChatChannel::Lobby) ? sLobbyChat : sRoomChat;
+}
+
+void GameClient::ClearChat(ChatChannel channel)
+{
+    ((channel == ChatChannel::Lobby) ? sLobbyChat : sRoomChat).clear();
+}
+
 void GameClient::RequestJoinRoom(int roomId)
 {
     sJoinFailReason.clear();
@@ -211,6 +233,7 @@ void GameClient::BuildPreviewRoom(int roomId)
     }
     sMySlot = slot;
     sJoinState = JoinState::Joined;
+    ClearChat(ChatChannel::Room);
 }
 
 void GameClient::LeaveRoom()
@@ -219,6 +242,7 @@ void GameClient::LeaveRoom()
     sRoom = RoomState{};
     sMySlot = -1;
     sJoinState = JoinState::None;
+    ClearChat(ChatChannel::Room);   // 방 채팅은 그 방에 있는 동안만
 }
 
 void GameClient::SelectMap(MAP_ID map)
@@ -262,6 +286,7 @@ void GameClient::OnRoomEnterResult(const S2C_RoomEnterResult* p)
         return;
     }
     sJoinState = JoinState::Joined;
+    ClearChat(ChatChannel::Room);
     sRoom = RoomState{};
     sRoom.roomId = p->roomId;
     sMySlot = p->slot;

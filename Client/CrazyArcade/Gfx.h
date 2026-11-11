@@ -28,6 +28,9 @@ namespace Gfx {
     // 원작 UI 글씨에 맞춘 글씨. 실제로 찍히는 픽셀 범위를 재서 box 안에 정확히 놓는다.
     // 세로는 기준 글자 '한'의 높이로 맞춰서 숫자만 있는 줄도 한글 줄과 같은 높이에 온다.
     enum class Align { Left, Center, Right };
+    // 픽셀 글씨 폭(테두리 제외) / maxWidth 안에 들어가는 글자 수 (채팅 줄바꿈용)
+    int PixelTextWidth(const std::wstring& text, int size = 12);
+    int PixelTextFit(const std::wstring& text, int maxWidth, int size = 12);
     void DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLORREF color,
         Align align = Align::Center, int size = 12, COLORREF outline = RGB(8, 36, 90), int outlineWidth = 1);
 
