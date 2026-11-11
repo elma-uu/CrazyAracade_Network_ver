@@ -29,6 +29,8 @@ public:
     static void SendEcho(const char* message);
     // nameUtf8: UTF-8 닉네임, MAX_NAME_LEN-1 바이트까지 (넘치면 잘림)
     static void SendLogin(const std::string& nameUtf8);
+    // 로비 진입·새로고침 때 방 1~8번 요약을 요청 (응답: S2C_RoomList)
+    static void SendRoomList();
 
 private:
     static bool DoRecv();

@@ -275,6 +275,14 @@ void NetworkManager::SendLogin(const std::string& nameUtf8)
     SendPacket(&p);
 }
 
+void NetworkManager::SendRoomList()
+{
+    C2S_RoomList p = {};
+    p.size = sizeof(p);
+    p.type = C2S_ROOM_LIST;
+    SendPacket(&p);
+}
+
 bool NetworkManager::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
@@ -298,6 +306,9 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
         break;
     case S2C_LOGIN_RESULT:
         GameClient::OnLoginResult(reinterpret_cast<S2C_LoginResult*>(packet));
+        break;
+    case S2C_ROOM_LIST:
+        GameClient::OnRoomList(reinterpret_cast<S2C_RoomList*>(packet));
         break;
     default: {
         char msg[64];

@@ -11,6 +11,8 @@ ULONGLONG GameClient::sLoginRequestedAt = 0;
 int GameClient::sMyId = -1;
 int GameClient::sWins = 0;
 int GameClient::sLosses = 0;
+GameClient::RoomView GameClient::sRooms[MAX_ROOM];
+bool GameClient::sHasRoomList = false;
 std::wstring GameClient::sNotice;
 ULONGLONG GameClient::sNoticeUntil = 0;
 bool GameClient::sEchoTestVisible = false;
@@ -21,6 +23,17 @@ std::wstring GameClient::sLastEcho;
 
 namespace {
     constexpr ULONGLONG kNoticeMs = 3000;
+
+    // 서버가 보낸 UTF-8 이름(끝 '\0' 없을 수도 있음) → 화면용 wstring
+    std::wstring Utf8NameToWide(const char* name, size_t maxLen)
+    {
+        int bytes = static_cast<int>(strnlen(name, maxLen));
+        if (bytes == 0) return {};
+        int chars = MultiByteToWideChar(CP_UTF8, 0, name, bytes, nullptr, 0);
+        std::wstring wide(chars, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, name, bytes, wide.data(), chars);
+        return wide;
+    }
 }
 
 void GameClient::Update()
@@ -89,6 +102,34 @@ void GameClient::OnLoginResult(const S2C_LoginResult* p)
     sMyId = p->id;
     sWins = p->win;
     sLosses = p->lose;
+}
+
+void GameClient::RequestRoomList()
+{
+    NetworkManager::SendRoomList();
+}
+
+void GameClient::ClearRoomList()
+{
+    for (int i = 0; i < MAX_ROOM; ++i) {
+        sRooms[i] = RoomView{};
+        sRooms[i].id = i + 1;
+    }
+    sHasRoomList = false;
+}
+
+void GameClient::OnRoomList(const S2C_RoomList* p)
+{
+    for (int i = 0; i < MAX_ROOM; ++i) {
+        const ROOM_SUMMARY& s = p->rooms[i];
+        RoomView& r = sRooms[i];
+        r.id = s.roomId;
+        r.map = s.mapId;
+        r.players = std::min<int>(s.playerCount, MAX_ROOM_PLAYER);
+        r.state = s.state;
+        r.host = Utf8NameToWide(s.hostName, sizeof(s.hostName));
+    }
+    sHasRoomList = true;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)

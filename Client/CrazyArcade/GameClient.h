@@ -34,9 +34,25 @@ public:
     static int Wins() { return sWins; }
     static int Losses() { return sLosses; }
 
+    // ---- 로비: 방 목록 ----
+    struct RoomView {
+        int            id = 0;              // 1~8
+        MAP_ID         map = MAP_FOREST;
+        int            players = 0;         // 0~MAX_ROOM_PLAYER
+        ROOM_STATE_NET state = ROOM_EMPTY;
+        std::wstring   host;
+    };
+    // C2S_RoomList를 보낸다. 응답이 오면 Room(i)가 갱신된다
+    static void RequestRoomList();
+    static const RoomView& Room(int index) { return sRooms[index]; }   // index 0~MAX_ROOM-1
+    static bool HasRoomList() { return sHasRoomList; }
+    // 로비에 들어갈 때 이전 목록이 잠깐 보이지 않게
+    static void ClearRoomList();
+
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);
     static void OnLoginResult(const S2C_LoginResult* p);
+    static void OnRoomList(const S2C_RoomList* p);
 
 private:
     static void UpdateEchoTest();
@@ -50,6 +66,9 @@ private:
     static int sMyId;
     static int sWins;
     static int sLosses;
+
+    static RoomView sRooms[MAX_ROOM];
+    static bool sHasRoomList;
 
     static std::wstring sNotice;
     static ULONGLONG sNoticeUntil;
