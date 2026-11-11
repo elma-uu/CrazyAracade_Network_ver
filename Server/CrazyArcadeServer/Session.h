@@ -33,14 +33,20 @@ public:
 
     bool InUse() const { return m_state != ST_FREE; }
     int  GetId() const { return m_id; }
+    const char* GetName() const { return m_name; }   // 로그인 전이면 ""
+
+    // 로그인을 마친 세션인지 (닉네임이 정해졌는지)
+    bool IsLoggedIn() const { return InUse() && m_name[0] != '\0'; }
 
 private:
     // C2S 핸들러 (ProcessPacket에서 호출)
     void OnEcho(const C2S_Echo* p);
+    void OnLogin(const C2S_Login* p);
 
     int           m_id = -1;
     SOCKET        m_socket = INVALID_SOCKET;
     SESSION_STATE m_state = ST_FREE;
+    char          m_name[MAX_NAME_LEN]{};   // UTF-8 닉네임, 로그인 전에는 ""
 
     // 받다 만 패킷 조각을 보관하는 버퍼
     unsigned char m_recvBuf[RECV_BUF_SIZE]{};

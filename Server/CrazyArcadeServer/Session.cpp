@@ -8,6 +8,7 @@ void SESSION::Init(int id, SOCKET sock)
     m_id = id;
     m_socket = sock;
     m_state = ST_CONNECTED;
+    m_name[0] = '\0';
     m_prevRemain = 0;
     m_sendQueue.clear();
 }
@@ -20,6 +21,7 @@ void SESSION::Reset()
         closesocket(m_socket);
         m_socket = INVALID_SOCKET;
     }
+    m_name[0] = '\0';              // 나간 사람의 닉네임은 다시 쓸 수 있게 된다
     m_prevRemain = 0;
     m_sendQueue.clear();
     m_sendQueue.shrink_to_fit();   // 큐가 크게 자랐던 자리의 메모리도 돌려준다
@@ -145,6 +147,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_ECHO:
         OnEcho(reinterpret_cast<C2S_Echo*>(packet));
         break;
+    case C2S_LOGIN:
+        OnLogin(reinterpret_cast<C2S_Login*>(packet));
+        break;
     default:
         // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
         std::cout << "[" << m_id << "] unhandled packet type=" << static_cast<int>(header->type)
@@ -167,4 +172,58 @@ void SESSION::OnEcho(const C2S_Echo* p)
     char text[sizeof(p->message) + 1]{};
     memcpy(text, p->message, sizeof(p->message));
     std::cout << "[" << m_id << "] echo: " << text << std::endl;
+}
+
+namespace {
+    // 닉네임 검사. 문제가 없으면 nullptr, 있으면 실패 이유를 돌려준다.
+    // - '\0'이 16바이트 안에 있어야 한다 (UTF-8 15바이트까지, 한글 5글자)
+    // - 빈 이름 불가
+    // - 공백·제어 문자 불가 (전적 파일이 "닉네임 승 패"를 공백으로 구분하기 때문)
+    const char* CheckName(const char (&name)[MAX_NAME_LEN])
+    {
+        size_t len = strnlen(name, MAX_NAME_LEN);
+        if (len == MAX_NAME_LEN) return "too long";
+        if (len == 0)            return "empty";
+        for (size_t i = 0; i < len; ++i) {
+            unsigned char c = static_cast<unsigned char>(name[i]);
+            if (c <= 0x20 || c == 0x7F) return "space or control character";
+        }
+        return nullptr;
+    }
+
+    // 다른 세션이 이미 같은 닉네임으로 로그인해 있는지 (대소문자 구분, 바이트 그대로 비교)
+    bool IsNameInUse(const char* name, int exceptId)
+    {
+        for (const SESSION& s : g_sessions) {
+            if (s.GetId() == exceptId || !s.IsLoggedIn())
+                continue;
+            if (strcmp(s.GetName(), name) == 0)
+                return true;
+        }
+        return false;
+    }
+}
+
+// 로그인: 닉네임 검사 → 중복 검사 → 닉네임 저장
+// 결과 패킷(S2C_LoginResult)과 로비 진입은 11/10
+void SESSION::OnLogin(const C2S_Login* p)
+{
+    if (IsLoggedIn()) {
+        std::cout << "[" << m_id << "] login ignored: already logged in as "
+                  << m_name << std::endl;
+        return;
+    }
+
+    if (const char* reason = CheckName(p->name)) {
+        std::cout << "[" << m_id << "] login failed: " << reason << std::endl;
+        return;
+    }
+
+    if (IsNameInUse(p->name, m_id)) {
+        std::cout << "[" << m_id << "] login failed: duplicate name " << p->name << std::endl;
+        return;
+    }
+
+    memcpy(m_name, p->name, MAX_NAME_LEN);   // CheckName에서 '\0'이 있는 것을 확인함
+    std::cout << "[" << m_id << "] login ok: " << m_name << std::endl;
 }
