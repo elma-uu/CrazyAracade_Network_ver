@@ -59,7 +59,7 @@ public:
         bool         exist = false;   // false = 빈 자리
         int          id = -1;
         std::wstring name;
-        int          color = 0;       // 0~6
+        int          color = 0;       // 0~7
         bool         ready = false;
     };
     struct RoomState {
@@ -82,7 +82,7 @@ public:
     static void LeaveRoom();
     // 방 안에서 보내기. 결과는 서버가 S2C_RoomInfo로 다시 알려 준다 (미리보기면 바로 반영)
     static void SelectMap(MAP_ID map);   // 방장만. 바꾸면 모두의 준비가 풀린다
-    static void SelectColor(int color);  // 0~6, 다른 사람이 쓰는 색은 안 됨
+    static void SelectColor(int color);  // 0~7, 다른 사람이 쓰는 색은 안 됨
     static void SetReady(bool ready);
     static void StartGame();             // 방장만
 

@@ -11,16 +11,16 @@ using namespace Ui;
 namespace {
     // room_bg.bmp 기준 좌표
     constexpr int kMapCellX = 496, kMapCellY = 200, kMapCellW = 84, kMapCellH = 70, kMapCellStep = 92;
-    constexpr int kColorX = 487, kColorY = 284, kColorW = 36, kColorH = 35;   // 팔레트 한 칸 (8칸 중 앞 7칸 사용)
-    constexpr int kColorCount = 7;
+    constexpr int kColorX = 487, kColorY = 284, kColorW = 36, kColorH = 35;   // 팔레트 한 칸
+    constexpr int kColorCount = 8;    // 빨강·노랑·주황·초록·청록·파랑·보라·검정
     const RECT kLeaveButton = Box(647, 429, 122, 45);
     const RECT kStartButton = Box(514, 495, 188, 53);
     const RECT kPowerButton = Box(749, 570, 31, 27);
 
     // room_sprites.bmp 안의 위치 {x, y, w, h}
-    RECT CharSprite(int color) { return { std::clamp(color, 0, 6) * 88, 0, 86, 86 }; }
-    constexpr RECT kReadyCheck = { 0, 88, 27, 32 };
-    constexpr RECT kColorCheck = { 30, 88, 30, 35 };
+    RECT CharSprite(int color) { return { std::clamp(color, 0, kColorCount - 1) * 88, 0, 86, 86 }; }
+    constexpr RECT kReadyCheck = { 0, 88, 27, 19 };   // 초록 체크 하나
+    constexpr RECT kColorCheck = { 30, 88, 30, 21 };
 
     // 준비 안 한 '준 비'는 배경에 원래 있던 흐린 글씨 색
     constexpr COLORREF kNotReady = RGB(0x3d, 0x7f, 0xc0);
@@ -201,7 +201,7 @@ void RoomScene::DrawSlots(HDC c) const
             DrawSprite(c, CrownSmall, tileX + 78, TileTop + 5);
             Gfx::DrawPixelText(c, Box(barX, StatusTop, barW, 16), L"방   장", Pink);
         } else if (pl.ready) {
-            DrawSprite(c, kReadyCheck, tileX + 70, TileTop + 4, BitmapID::RoomSprites);
+            DrawSprite(c, kReadyCheck, tileX + 70, TileTop + 6, BitmapID::RoomSprites);
             Gfx::DrawPixelText(c, Box(barX, StatusTop, barW, 16), L"준   비", Yellow);
         } else {
             Gfx::DrawPixelText(c, Box(barX, StatusTop, barW, 16), L"준   비", kNotReady);
@@ -233,11 +233,11 @@ void RoomScene::DrawColors(HDC c) const
     const int mySlot = GameClient::MySlot();
     const int myColor = (mySlot >= 0) ? room.players[mySlot].color : -1;
 
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kColorCount; ++i) {
         RECT cell = ColorCell(i);
         RECT inner = { cell.left + 3, cell.top + 2, cell.right - 4, cell.bottom - 3 };
-        // 8번째(갈색)는 쓰지 않는 색, 다른 사람이 쓰는 색은 어둡게 + X
-        if (i >= kColorCount || ColorTaken(room, i, mySlot)) {
+        // 다른 사람이 쓰는 색은 어둡게 + X
+        if (ColorTaken(room, i, mySlot)) {
             Gfx::FillAlpha(c, inner, RGB(6, 32, 74), 150);
             HPEN pen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
             HGDIOBJ old = SelectObject(c, pen);
@@ -246,7 +246,7 @@ void RoomScene::DrawColors(HDC c) const
             SelectObject(c, old);
             DeleteObject(pen);
         }
-        if (i == myColor) DrawSprite(c, kColorCheck, cell.left + 3, cell.top - 6, BitmapID::RoomSprites);
+        if (i == myColor) DrawSprite(c, kColorCheck, cell.left + 3, cell.top - 4, BitmapID::RoomSprites);
         if (i == mHoverColor) Gfx::DrawRoundFrame(c, cell, 4, HoverFrame, 2);
     }
 }

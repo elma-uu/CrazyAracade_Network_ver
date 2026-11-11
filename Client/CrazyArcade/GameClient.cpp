@@ -28,6 +28,7 @@ std::wstring GameClient::sLastEcho;
 
 namespace {
     constexpr ULONGLONG kNoticeMs = 3000;
+    constexpr int kColorCount = 8;   // 대기방 색 0~7 (팔레트 8칸)
 
     // 서버가 보낸 UTF-8 이름(끝 '\0' 없을 수도 있음) → 화면용 wstring
     std::wstring Utf8NameToWide(const char* name, size_t maxLen)
@@ -194,7 +195,7 @@ void GameClient::BuildPreviewRoom(int roomId)
             while (r.host == others[other % 6]) ++other;
             p.name = others[other++ % 6];
         }
-        p.color = (slot * 3) % 7;          // 서로 다른 색 (0, 3, 6)
+        p.color = (slot * 3) % kColorCount;   // 서로 다른 색 (0, 3, 6)
         p.ready = (i != 0) && (i % 2 == 1);  // 방장 빼고 일부만 준비
     }
 
@@ -203,7 +204,7 @@ void GameClient::BuildPreviewRoom(int roomId)
     me.exist = true;
     me.id = (sMyId >= 0) ? sMyId : 1;
     me.name = sMyName;
-    for (int color = 0; color < 7; ++color) {
+    for (int color = 0; color < kColorCount; ++color) {
         bool used = false;
         for (int i = 0; i < slot; ++i) used |= sRoom.players[i].color == color;
         if (!used) { me.color = color; break; }
@@ -230,7 +231,7 @@ void GameClient::SelectMap(MAP_ID map)
 
 void GameClient::SelectColor(int color)
 {
-    if (sMySlot < 0 || color < 0 || color > 6) return;
+    if (sMySlot < 0 || color < 0 || color >= kColorCount) return;
     if (!sLobbyPreview) { NetworkManager::SendSelectColor(color); return; }
     for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
         if (i != sMySlot && sRoom.players[i].exist && sRoom.players[i].color == color) return;
