@@ -300,6 +300,41 @@ void NetworkManager::SendLeaveRoom()
     SendPacket(&p);
 }
 
+void NetworkManager::SendSelectMap(MAP_ID map)
+{
+    C2S_SelectMap p = {};
+    p.size = sizeof(p);
+    p.type = C2S_SELECT_MAP;
+    p.mapId = map;
+    SendPacket(&p);
+}
+
+void NetworkManager::SendSelectColor(int color)
+{
+    C2S_SelectColor p = {};
+    p.size = sizeof(p);
+    p.type = C2S_SELECT_COLOR;
+    p.color = static_cast<unsigned char>(color);
+    SendPacket(&p);
+}
+
+void NetworkManager::SendReady(bool ready)
+{
+    C2S_Ready p = {};
+    p.size = sizeof(p);
+    p.type = C2S_READY;
+    p.ready = ready;
+    SendPacket(&p);
+}
+
+void NetworkManager::SendStartGame()
+{
+    C2S_StartGame p = {};
+    p.size = sizeof(p);
+    p.type = C2S_START_GAME;
+    SendPacket(&p);
+}
+
 bool NetworkManager::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);

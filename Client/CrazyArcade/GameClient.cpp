@@ -220,6 +220,37 @@ void GameClient::LeaveRoom()
     sJoinState = JoinState::None;
 }
 
+void GameClient::SelectMap(MAP_ID map)
+{
+    if (!AmIHost()) return;
+    if (!sLobbyPreview) { NetworkManager::SendSelectMap(map); return; }
+    sRoom.map = map;
+    for (RoomPlayerView& p : sRoom.players) p.ready = false;   // 서버와 같은 규칙: 맵이 바뀌면 준비 해제
+}
+
+void GameClient::SelectColor(int color)
+{
+    if (sMySlot < 0 || color < 0 || color > 6) return;
+    if (!sLobbyPreview) { NetworkManager::SendSelectColor(color); return; }
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+        if (i != sMySlot && sRoom.players[i].exist && sRoom.players[i].color == color) return;
+    sRoom.players[sMySlot].color = color;
+}
+
+void GameClient::SetReady(bool ready)
+{
+    if (sMySlot < 0 || AmIHost()) return;
+    if (!sLobbyPreview) { NetworkManager::SendReady(ready); return; }
+    sRoom.players[sMySlot].ready = ready;
+}
+
+void GameClient::StartGame()
+{
+    if (!AmIHost()) return;
+    if (!sLobbyPreview) { NetworkManager::SendStartGame(); return; }
+    ShowNotice(L"미리보기에서는 게임을 시작하지 않아요");
+}
+
 void GameClient::OnRoomEnterResult(const S2C_RoomEnterResult* p)
 {
     if (sJoinState != JoinState::Waiting) return;   // 요청하지 않은 응답

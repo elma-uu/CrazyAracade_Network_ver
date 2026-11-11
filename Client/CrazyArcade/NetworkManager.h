@@ -34,6 +34,11 @@ public:
     // 방 입장 / 나가기 (응답: S2C_RoomEnterResult → S2C_RoomInfo)
     static void SendJoinRoom(int roomId);
     static void SendLeaveRoom();
+    // 대기방 안 (결과는 S2C_RoomInfo)
+    static void SendSelectMap(MAP_ID map);
+    static void SendSelectColor(int color);
+    static void SendReady(bool ready);
+    static void SendStartGame();
 
 private:
     static bool DoRecv();
