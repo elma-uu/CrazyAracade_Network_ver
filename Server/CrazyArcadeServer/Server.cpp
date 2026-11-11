@@ -4,11 +4,9 @@
 #include <atomic>
 #include <iostream>
 #include <string>
-#include <vector>
 
-// 1단계(에코 서버) 임시 세션 목록: 접속 순서대로 추가, 끊긴 자리는 재사용하지 않음
-// → 11/7에 SESSION 배열 + FindFreeSession으로 바꿀 예정
-static std::vector<SESSION> g_sessions;
+// 접속자 전체: 배열 번호 = 세션 ID. 끊긴 자리(ST_FREE)는 다음 접속자가 재사용한다.
+std::array<SESSION, MAX_USER> g_sessions;
 
 namespace {
     // Ctrl+C / 창 닫기에서 false로 바꿔 메인 루프를 끝낸다 (콘솔 핸들러는 다른 스레드에서 불림)
@@ -144,15 +142,30 @@ void Server::AcceptClients()
         setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
                    reinterpret_cast<const char*>(&noDelay), sizeof(noDelay));
 
-        int id = static_cast<int>(g_sessions.size());
-        g_sessions.emplace_back();
-        g_sessions.back().Init(id, sock);
-
         char ip[INET_ADDRSTRLEN] = "?";
         inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip));
+
+        int id = FindFreeSession();
+        if (id == -1) {
+            // 이미 MAX_USER명 접속 중 → 받자마자 끊는다
+            std::cout << "[server] full (" << MAX_USER << " users), refused "
+                      << ip << ":" << ntohs(addr.sin_port) << std::endl;
+            closesocket(sock);
+            continue;
+        }
+
+        g_sessions[id].Init(id, sock);
         std::cout << "[" << id << "] connected from " << ip << ":"
                   << ntohs(addr.sin_port) << std::endl;
     }
+}
+
+int Server::FindFreeSession() const
+{
+    for (int i = 0; i < MAX_USER; ++i)
+        if (!g_sessions[i].InUse())
+            return i;
+    return -1;
 }
 
 void Server::Shutdown()

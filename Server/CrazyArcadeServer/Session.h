@@ -1,5 +1,6 @@
 #pragma once
 #include <WinSock2.h>
+#include <array>
 #include <vector>
 #include "protocol.h"
 
@@ -47,3 +48,6 @@ private:
     // 아직 못 보낸 데이터 (논블로킹 send의 부분 전송 대비)
     std::vector<unsigned char> m_sendQueue;
 };
+
+// 접속자 전체 (배열 번호 = 세션 ID, 최대 MAX_USER명). 정의는 Server.cpp
+extern std::array<SESSION, MAX_USER> g_sessions;

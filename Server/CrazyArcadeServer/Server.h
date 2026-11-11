@@ -16,6 +16,9 @@ public:
     // 새 소켓도 FIONBIO + TCP_NODELAY로 설정
     void AcceptClients();
 
+    // ST_FREE인 SESSION 번호 (없으면 -1 → 접속 거부)
+    int  FindFreeSession() const;
+
     void Shutdown();
 
 private:
