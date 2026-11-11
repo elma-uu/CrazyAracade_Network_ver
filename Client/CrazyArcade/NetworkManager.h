@@ -31,6 +31,9 @@ public:
     static void SendLogin(const std::string& nameUtf8);
     // 로비 진입·새로고침 때 방 1~8번 요약을 요청 (응답: S2C_RoomList)
     static void SendRoomList();
+    // 방 입장 / 나가기 (응답: S2C_RoomEnterResult → S2C_RoomInfo)
+    static void SendJoinRoom(int roomId);
+    static void SendLeaveRoom();
 
 private:
     static bool DoRecv();

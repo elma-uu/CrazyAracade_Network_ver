@@ -283,6 +283,23 @@ void NetworkManager::SendRoomList()
     SendPacket(&p);
 }
 
+void NetworkManager::SendJoinRoom(int roomId)
+{
+    C2S_JoinRoom p = {};
+    p.size = sizeof(p);
+    p.type = C2S_JOIN_ROOM;
+    p.roomId = static_cast<unsigned char>(roomId);
+    SendPacket(&p);
+}
+
+void NetworkManager::SendLeaveRoom()
+{
+    C2S_LeaveRoom p = {};
+    p.size = sizeof(p);
+    p.type = C2S_LEAVE_ROOM;
+    SendPacket(&p);
+}
+
 bool NetworkManager::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
@@ -309,6 +326,15 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
         break;
     case S2C_ROOM_LIST:
         GameClient::OnRoomList(reinterpret_cast<S2C_RoomList*>(packet));
+        break;
+    case S2C_ROOM_ENTER_RESULT:
+        GameClient::OnRoomEnterResult(reinterpret_cast<S2C_RoomEnterResult*>(packet));
+        break;
+    case S2C_ROOM_INFO:
+        GameClient::OnRoomInfo(reinterpret_cast<S2C_RoomInfo*>(packet));
+        break;
+    case S2C_PLAYER_LEAVE:
+        GameClient::OnPlayerLeave(reinterpret_cast<S2C_PlayerLeave*>(packet));
         break;
     default: {
         char msg[64];

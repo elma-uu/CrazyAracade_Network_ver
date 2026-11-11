@@ -14,6 +14,10 @@ int GameClient::sLosses = 0;
 GameClient::RoomView GameClient::sRooms[MAX_ROOM];
 bool GameClient::sHasRoomList = false;
 bool GameClient::sLobbyPreview = false;
+GameClient::JoinState GameClient::sJoinState = GameClient::JoinState::None;
+std::wstring GameClient::sJoinFailReason;
+GameClient::RoomState GameClient::sRoom;
+int GameClient::sMySlot = -1;
 std::wstring GameClient::sNotice;
 ULONGLONG GameClient::sNoticeUntil = 0;
 bool GameClient::sEchoTestVisible = false;
@@ -88,6 +92,10 @@ void GameClient::ResetLogin()
     sLoginState = LoginState::None;
     sMyId = -1;
     sWins = sLosses = 0;   // 다음 로그인에 이전 사람의 전적이 보이지 않게
+    // 방에 있던 상태도 비운다 (끊긴 경우 C2S_LeaveRoom은 보낼 수 없음)
+    sRoom = RoomState{};
+    sMySlot = -1;
+    sJoinState = JoinState::None;
 }
 
 void GameClient::OnLoginResult(const S2C_LoginResult* p)
@@ -155,6 +163,62 @@ void GameClient::OnRoomList(const S2C_RoomList* p)
         r.host = Utf8NameToWide(s.hostName, sizeof(s.hostName));
     }
     sHasRoomList = true;
+}
+
+void GameClient::RequestJoinRoom(int roomId)
+{
+    sJoinFailReason.clear();
+    sJoinState = JoinState::Waiting;
+    NetworkManager::SendJoinRoom(roomId);
+}
+
+void GameClient::LeaveRoom()
+{
+    if (sJoinState == JoinState::Joined) NetworkManager::SendLeaveRoom();
+    sRoom = RoomState{};
+    sMySlot = -1;
+    sJoinState = JoinState::None;
+}
+
+void GameClient::OnRoomEnterResult(const S2C_RoomEnterResult* p)
+{
+    if (sJoinState != JoinState::Waiting) return;   // 요청하지 않은 응답
+    if (!p->success) {
+        sJoinState = JoinState::Failed;
+        sJoinFailReason = (p->failReason == ENTER_PLAYING) ? L"이미 게임 중인 방이에요"
+            : (p->failReason == ENTER_FULL) ? L"방이 꽉 찼어요" : L"방에 들어가지 못했어요";
+        return;
+    }
+    sJoinState = JoinState::Joined;
+    sRoom = RoomState{};
+    sRoom.roomId = p->roomId;
+    sMySlot = p->slot;
+    // 자리·맵 등은 바로 뒤에 오는 S2C_RoomInfo로 채워진다
+}
+
+void GameClient::OnRoomInfo(const S2C_RoomInfo* p)
+{
+    if (sJoinState != JoinState::Joined) return;
+    sRoom.roomId = p->roomId;
+    sRoom.map = p->mapId;
+    sRoom.hostSlot = p->hostSlot;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        const ROOM_PLAYER& s = p->players[i];
+        RoomPlayerView& v = sRoom.players[i];
+        v.exist = s.exist;
+        v.id = s.id;
+        v.name = Utf8NameToWide(s.name, sizeof(s.name));
+        v.color = s.color;
+        v.ready = s.ready;
+    }
+}
+
+void GameClient::OnPlayerLeave(const S2C_PlayerLeave* p)
+{
+    if (sJoinState != JoinState::Joined) return;
+    for (RoomPlayerView& v : sRoom.players)
+        if (v.exist && v.id == p->id) v = RoomPlayerView{};
+    sRoom.hostSlot = p->newHostSlot;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)

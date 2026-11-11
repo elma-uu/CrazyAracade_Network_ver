@@ -54,10 +54,40 @@ public:
     static void EndLobbyPreview() { sLobbyPreview = false; }
     static bool IsLobbyPreview() { return sLobbyPreview; }
 
+    // ---- 방 입장 · 방 상태 ----
+    struct RoomPlayerView {
+        bool         exist = false;   // false = 빈 자리
+        int          id = -1;
+        std::wstring name;
+        int          color = 0;       // 0~6
+        bool         ready = false;
+    };
+    struct RoomState {
+        int            roomId = 0;
+        MAP_ID         map = MAP_FOREST;
+        int            hostSlot = 0;
+        RoomPlayerView players[MAX_ROOM_PLAYER];
+    };
+    enum class JoinState { None, Waiting, Joined, Failed };
+    // C2S_JoinRoom을 보내고 S2C_RoomEnterResult를 기다린다
+    static void RequestJoinRoom(int roomId);
+    static JoinState GetJoinState() { return sJoinState; }
+    static const std::wstring& JoinFailReason() { return sJoinFailReason; }
+    // 실패 안내를 한 번 보여 준 뒤 None으로
+    static void ClearJoinFailure() { if (sJoinState == JoinState::Failed) sJoinState = JoinState::None; }
+    static const RoomState& CurrentRoom() { return sRoom; }
+    static int MySlot() { return sMySlot; }
+    static bool AmIHost() { return sMySlot >= 0 && sRoom.hostSlot == sMySlot; }
+    // C2S_LeaveRoom을 보내고 방 상태를 비운다
+    static void LeaveRoom();
+
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);
     static void OnLoginResult(const S2C_LoginResult* p);
     static void OnRoomList(const S2C_RoomList* p);
+    static void OnRoomEnterResult(const S2C_RoomEnterResult* p);
+    static void OnRoomInfo(const S2C_RoomInfo* p);
+    static void OnPlayerLeave(const S2C_PlayerLeave* p);
 
 private:
     static void UpdateEchoTest();
@@ -75,6 +105,11 @@ private:
     static RoomView sRooms[MAX_ROOM];
     static bool sHasRoomList;
     static bool sLobbyPreview;
+
+    static JoinState sJoinState;
+    static std::wstring sJoinFailReason;
+    static RoomState sRoom;
+    static int sMySlot;
 
     static std::wstring sNotice;
     static ULONGLONG sNoticeUntil;
