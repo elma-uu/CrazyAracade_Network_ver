@@ -56,12 +56,16 @@
 #define IDB_BITMAP_BLINKER_ON           172
 
 #define IDB_BITMAP_CITY_CLOCK           173
+#define IDB_BITMAP_LOBBY_BG             174
+#define IDB_BITMAP_LOBBY_TILES          175
+#define IDB_BITMAP_LOBBY_MAPS           176
+#define IDB_BITMAP_LOBBY_SPRITES        177
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        174
+#define _APS_NEXT_RESOURCE_VALUE        178
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101

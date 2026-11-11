@@ -441,6 +441,18 @@
     <Image Include="Resource\up2.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Resource\lobby\lobby_bg.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resource\lobby\lobby_maps.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resource\lobby\lobby_sprites.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resource\lobby\lobby_tiles.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>

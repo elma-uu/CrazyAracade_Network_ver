@@ -323,6 +323,10 @@ xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</C
     <Image Include="Resource\right2.bmp" />
     <Image Include="Resource\up1.bmp" />
     <Image Include="Resource\up2.bmp" />
+    <Image Include="Resource\lobby\lobby_bg.bmp" />
+    <Image Include="Resource\lobby\lobby_maps.bmp" />
+    <Image Include="Resource\lobby\lobby_sprites.bmp" />
+    <Image Include="Resource\lobby\lobby_tiles.bmp" />
     <Image Include="small.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

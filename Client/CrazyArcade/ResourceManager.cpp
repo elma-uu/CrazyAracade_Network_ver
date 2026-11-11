@@ -5,7 +5,8 @@ HBITMAP ResourceManager::sBitmaps[static_cast<int>(BitmapID::Count)] = {};
 
 void ResourceManager::LoadAll(HINSTANCE hInst)
 {
-    struct Entry { BitmapID id; int resource; };
+    // dib = true: 32비트 알파를 살리려고 DIB 섹션으로 읽는다 (LoadBitmap은 알파를 버림)
+    struct Entry { BitmapID id; int resource; bool dib; };
     static const Entry entries[] = {
         { BitmapID::Login,           IDB_BITMAP_GAME_LOGIN },
         { BitmapID::SelectStage,     IDB_BITMAP_SELECT_STAGE },
@@ -54,12 +55,20 @@ void ResourceManager::LoadAll(HINSTANCE hInst)
         { BitmapID::ItemPower,       IDB_BITMAP_ITEM_POWER },
         { BitmapID::ItemBombCount,   IDB_BITMAP_ITEM_BOMBS },
         { BitmapID::ItemSpeed,       IDB_BITMAP_ITEM_SPEED },
+
+        { BitmapID::LobbyBg,         IDB_BITMAP_LOBBY_BG },
+        { BitmapID::LobbyTiles,      IDB_BITMAP_LOBBY_TILES },
+        { BitmapID::LobbyMaps,       IDB_BITMAP_LOBBY_MAPS },
+        { BitmapID::LobbySprites,    IDB_BITMAP_LOBBY_SPRITES, true },
     };
     static_assert(sizeof(entries) / sizeof(entries[0]) == static_cast<size_t>(BitmapID::Count),
         "BitmapID마다 리소스를 하나씩 등록해야 합니다");
 
-    for (const Entry& e : entries)
-        sBitmaps[static_cast<int>(e.id)] = LoadBitmap(hInst, MAKEINTRESOURCE(e.resource));
+    for (const Entry& e : entries) {
+        sBitmaps[static_cast<int>(e.id)] = e.dib
+            ? static_cast<HBITMAP>(LoadImageW(hInst, MAKEINTRESOURCEW(e.resource), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION))
+            : LoadBitmap(hInst, MAKEINTRESOURCE(e.resource));
+    }
 }
 
 void ResourceManager::UnloadAll()
