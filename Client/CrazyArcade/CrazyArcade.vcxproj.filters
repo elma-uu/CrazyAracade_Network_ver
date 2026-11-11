@@ -57,6 +57,9 @@
     <ClInclude Include="LobbyScene.h">
       <Filter>Scenes</Filter>
     </ClInclude>
+    <ClInclude Include="UiParts.h">
+      <Filter>Scenes</Filter>
+    </ClInclude>
     <ClInclude Include="LoginScene.h">
       <Filter>Scenes</Filter>
     </ClInclude>
@@ -147,6 +150,9 @@
       <Filter>Objects</Filter>
     </ClCompile>
     <ClCompile Include="LobbyScene.cpp">
+      <Filter>Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="UiParts.cpp">
       <Filter>Scenes</Filter>
     </ClCompile>
     <ClCompile Include="LoginScene.cpp">
