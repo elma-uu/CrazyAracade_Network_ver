@@ -60,6 +60,9 @@ void ResourceManager::LoadAll(HINSTANCE hInst)
         { BitmapID::LobbyTiles,      IDB_BITMAP_LOBBY_TILES },
         { BitmapID::LobbyMaps,       IDB_BITMAP_LOBBY_MAPS },
         { BitmapID::LobbySprites,    IDB_BITMAP_LOBBY_SPRITES, true },
+
+        { BitmapID::RoomBg,          IDB_BITMAP_ROOM_BG },
+        { BitmapID::RoomSprites,     IDB_BITMAP_ROOM_SPRITES, true },
     };
     static_assert(sizeof(entries) / sizeof(entries[0]) == static_cast<size_t>(BitmapID::Count),
         "BitmapID마다 리소스를 하나씩 등록해야 합니다");

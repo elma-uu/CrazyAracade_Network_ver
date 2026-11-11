@@ -453,6 +453,12 @@
     <Image Include="Resource\lobby\lobby_tiles.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Resource\room\room_bg.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resource\room\room_sprites.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>
