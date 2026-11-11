@@ -13,6 +13,7 @@ int GameClient::sWins = 0;
 int GameClient::sLosses = 0;
 GameClient::RoomView GameClient::sRooms[MAX_ROOM];
 bool GameClient::sHasRoomList = false;
+bool GameClient::sLobbyPreview = false;
 std::wstring GameClient::sNotice;
 ULONGLONG GameClient::sNoticeUntil = 0;
 bool GameClient::sEchoTestVisible = false;
@@ -116,6 +117,30 @@ void GameClient::ClearRoomList()
         sRooms[i].id = i + 1;
     }
     sHasRoomList = false;
+}
+
+void GameClient::StartLobbyPreview()
+{
+    sLobbyPreview = true;
+    if (sMyName.empty()) sMyName = L"미리보기";
+    sWins = 12;
+    sLosses = 7;
+
+    struct Sample { MAP_ID map; int players; ROOM_STATE_NET state; const wchar_t* host; };
+    static const Sample samples[MAX_ROOM] = {
+        { MAP_FOREST, 4, ROOM_WAITING, L"지은" },
+        { MAP_ICE,    4, ROOM_PLAYING, L"규동" },
+        { MAP_CITY,   1, ROOM_WAITING, L"민수" },
+        { MAP_FOREST, 2, ROOM_WAITING, L"형민" },
+        { MAP_FOREST, 0, ROOM_EMPTY,   L"" },
+        { MAP_ICE,    3, ROOM_PLAYING, L"서연" },
+        { MAP_FOREST, 0, ROOM_EMPTY,   L"" },
+        { MAP_CITY,   2, ROOM_WAITING, L"하늘" },
+    };
+    for (int i = 0; i < MAX_ROOM; ++i) {
+        sRooms[i] = { i + 1, samples[i].map, samples[i].players, samples[i].state, samples[i].host };
+    }
+    sHasRoomList = true;
 }
 
 void GameClient::OnRoomList(const S2C_RoomList* p)

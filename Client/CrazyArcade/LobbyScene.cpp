@@ -131,21 +131,30 @@ LobbyScene::~LobbyScene()
 
 void LobbyScene::OnEnter()
 {
-    GameClient::ClearRoomList();
-    GameClient::RequestRoomList();
+    if (!GameClient::IsLobbyPreview()) {
+        GameClient::ClearRoomList();
+        GameClient::RequestRoomList();
+    }
     AddLog(L"[알림] 로비에 들어왔습니다.", kYellow);
+    if (GameClient::IsLobbyPreview()) AddLog(L"[알림] 미리보기: 서버 없이 샘플 방 목록을 보여 줍니다.", kDim);
 }
 
 void LobbyScene::Update(float)
 {
     if (Input::GetKeyDown(VK_ESCAPE)) {
+        if (GameClient::IsLobbyPreview()) {
+            GameClient::EndLobbyPreview();
+            GameClient::ResetLogin();
+            SceneManager::ChangeScene(SceneType::Login);
+            return;
+        }
         NetworkManager::Disconnect();
         GameClient::ResetLogin();
         SceneManager::ChangeScene(SceneType::Title);
         return;
     }
     // 서버와 끊기면 로그인 화면으로 (끊김 안내는 GameClient가 띄운다)
-    if (!NetworkManager::IsConnected()) {
+    if (!GameClient::IsLobbyPreview() && !NetworkManager::IsConnected()) {
         SceneManager::ChangeScene(SceneType::Login);
         return;
     }
@@ -189,7 +198,7 @@ void LobbyScene::SelectRoom(int index)
 
 void LobbyScene::Refresh()
 {
-    GameClient::RequestRoomList();
+    if (!GameClient::IsLobbyPreview()) GameClient::RequestRoomList();
     AddLog(L"[알림] 방 목록을 새로 받았습니다.", kYellow);
 }
 

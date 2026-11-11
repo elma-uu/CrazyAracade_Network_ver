@@ -49,6 +49,11 @@ public:
     // 로비에 들어갈 때 이전 목록이 잠깐 보이지 않게
     static void ClearRoomList();
 
+    // 서버 없이 로비 화면을 확인하는 미리보기 (로그인 화면 F8). 샘플 방 목록과 전적을 채운다
+    static void StartLobbyPreview();
+    static void EndLobbyPreview() { sLobbyPreview = false; }
+    static bool IsLobbyPreview() { return sLobbyPreview; }
+
     // ---- S2C 반영 ----
     static void OnEcho(const S2C_Echo* p);
     static void OnLoginResult(const S2C_LoginResult* p);
@@ -69,6 +74,7 @@ private:
 
     static RoomView sRooms[MAX_ROOM];
     static bool sHasRoomList;
+    static bool sLobbyPreview;
 
     static std::wstring sNotice;
     static ULONGLONG sNoticeUntil;

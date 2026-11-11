@@ -58,6 +58,14 @@ void LoginScene::Update(float)
         SceneManager::ChangeScene(SceneType::Select);
         return;
     }
+    // 서버 없이 로비 화면만 확인 (샘플 방 목록)
+    if (Input::GetKeyDown(VK_F8)) {
+        NetworkManager::Disconnect();
+        GameClient::ResetLogin();
+        GameClient::StartLobbyPreview();
+        SceneManager::ChangeScene(SceneType::Lobby);
+        return;
+    }
 
     if (mConnectPending) {
         ConnectToServer();
@@ -227,5 +235,5 @@ void LoginScene::Render(HDC hdc)
         Gfx::DrawSmallText(hdc, kBoxX, kBoxY[FieldIp] + kBoxH + 24, mMessage, mMessageColor);
 
     Gfx::DrawSmallText(hdc, kBoxX, kBoxY[FieldIp] + kBoxH + 70, L"Tab 칸 이동    Enter 접속", RGB(200, 200, 200));
-    Gfx::DrawSmallText(hdc, 20, Config::ScreenHeight - 40, L"ESC 타이틀로    F9 한 컴퓨터 2인 모드");
+    Gfx::DrawSmallText(hdc, 20, Config::ScreenHeight - 40, L"ESC 타이틀로    F9 한 컴퓨터 2인 모드    F8 로비 미리보기");
 }
