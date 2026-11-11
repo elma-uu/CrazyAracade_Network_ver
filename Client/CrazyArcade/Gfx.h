@@ -17,6 +17,20 @@ namespace Gfx {
     void DrawNoticeBar(HDC hdc, const std::wstring& text);
     void DrawDarkOverlay(HDC hdc, int width, int height);
 
+    // 32비트 미리 곱한 알파 비트맵(ResourceManager에서 dib로 읽은 것)을 반투명 경계 그대로 그린다 (1:1)
+    void DrawAlpha(HDC dst, BitmapID id, int x, int y, int srcX, int srcY, int w, int h);
+    // 사각형 영역을 color로 alpha(0~255)만큼 덮는다 (들어갈 수 없는 칸 어둡게 등)
+    void FillAlpha(HDC hdc, const RECT& rc, COLORREF color, BYTE alpha);
+    // 둥근 테두리만 그린다 (선택 표시)
+    void DrawRoundFrame(HDC hdc, const RECT& rc, int radius, COLORREF color, int width);
+
+    // ---- 픽셀 글씨 (돋움 Bold, 안티앨리어싱 없음, 테두리) ----
+    // 원작 UI 글씨에 맞춘 글씨. 실제로 찍히는 픽셀 범위를 재서 box 안에 정확히 놓는다.
+    // 세로는 기준 글자 '한'의 높이로 맞춰서 숫자만 있는 줄도 한글 줄과 같은 높이에 온다.
+    enum class Align { Left, Center, Right };
+    void DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLORREF color,
+        Align align = Align::Center, int size = 12, COLORREF outline = RGB(8, 36, 90), int outlineWidth = 1);
+
     // 지정한 색상 범위(hue)의 픽셀만 hueShift만큼 돌린 새 비트맵을 만든다. 호출자가 DeleteObject 해야 함
     HBITMAP CreateHueShiftedCopy(HBITMAP source, double hueShift, double hueMin, double hueMax);
 

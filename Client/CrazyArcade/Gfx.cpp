@@ -1,8 +1,13 @@
 ﻿#include "Gfx.h"
+#include <map>
 #pragma comment(lib, "msimg32.lib")
 
 namespace {
     HDC sMemDC = nullptr;
+    HBITMAP sTintPixel = nullptr;        // FillAlpha용 1x1 32비트
+    DWORD* sTintBits = nullptr;
+    std::map<int, HFONT> sPixelFonts;    // 크기별 돋움 Bold
+    std::map<std::pair<int, std::wstring>, RECT> sInkCache;   // 글씨별 실제 픽셀 범위
     HFONT sTextFont = nullptr;
     HFONT sSmallFont = nullptr;
     HPEN sTextPen = nullptr;
@@ -21,6 +26,65 @@ namespace {
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
             ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"맑은 고딕");
         return sSmallFont;
+    }
+
+    HFONT PixelFont(int size)
+    {
+        HFONT& font = sPixelFonts[size];
+        if (!font) font = CreateFontW(-size, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+            HANGEUL_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            NONANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"돋움");
+        return font;
+    }
+
+    // TextOutW(0,0)으로 찍었을 때 실제로 칠해지는 픽셀 범위 (글꼴 위아래 여백 제외)
+    RECT InkBox(int size, const std::wstring& text)
+    {
+        auto key = std::make_pair(size, text);
+        auto it = sInkCache.find(key);
+        if (it != sInkCache.end()) return it->second;
+
+        HDC dc = CreateCompatibleDC(nullptr);
+        HGDIOBJ oldFont = SelectObject(dc, PixelFont(size));
+        SIZE ext = {};
+        GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &ext);
+        const int pad = size;
+        const int w = ext.cx + pad * 2, h = ext.cy + pad * 2;
+
+        BITMAPINFO bmi = {};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = w;
+        bmi.bmiHeader.biHeight = -h;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+        void* bits = nullptr;
+        HBITMAP dib = CreateDIBSection(dc, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        HGDIOBJ oldBmp = SelectObject(dc, dib);
+        RECT all = { 0, 0, w, h };
+        FillRect(dc, &all, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+        SetBkMode(dc, TRANSPARENT);
+        SetTextColor(dc, RGB(255, 255, 255));
+        TextOutW(dc, pad, pad, text.c_str(), static_cast<int>(text.size()));
+        GdiFlush();
+
+        RECT ink = { w, h, -1, -1 };
+        const DWORD* px = static_cast<const DWORD*>(bits);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+                if (px[y * w + x] & 0x00FFFFFF) {
+                    ink.left = std::min<LONG>(ink.left, x);  ink.right = std::max<LONG>(ink.right, x + 1);
+                    ink.top = std::min<LONG>(ink.top, y);    ink.bottom = std::max<LONG>(ink.bottom, y + 1);
+                }
+        if (ink.right < 0) ink = { pad, pad, pad, pad };   // 공백뿐인 글씨
+        OffsetRect(&ink, -pad, -pad);
+
+        SelectObject(dc, oldBmp);
+        SelectObject(dc, oldFont);
+        DeleteObject(dib);
+        DeleteDC(dc);
+        sInkCache[key] = ink;
+        return ink;
     }
 
     void RGBtoHSV(BYTE r, BYTE g, BYTE b, double& h, double& s, double& v)
@@ -79,6 +143,87 @@ void Gfx::DrawOpaque(HDC dst, BitmapID id, int x, int y, int w, int h, int srcX,
     HGDIOBJ old = SelectObject(mem, bitmap);
     StretchBlt(dst, x, y, w, h, mem, srcX, srcY, srcW, srcH, SRCCOPY);
     SelectObject(mem, old);
+}
+
+void Gfx::DrawAlpha(HDC dst, BitmapID id, int x, int y, int srcX, int srcY, int w, int h)
+{
+    HBITMAP bitmap = ResourceManager::Get(id);
+    if (!bitmap) return;
+    HDC mem = MemDC();
+    HGDIOBJ old = SelectObject(mem, bitmap);
+    BLENDFUNCTION blend = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+    AlphaBlend(dst, x, y, w, h, mem, srcX, srcY, w, h, blend);
+    SelectObject(mem, old);
+}
+
+void Gfx::FillAlpha(HDC hdc, const RECT& rc, COLORREF color, BYTE alpha)
+{
+    if (!sTintPixel) {
+        BITMAPINFO bmi = {};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = 1;
+        bmi.bmiHeader.biHeight = 1;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+        void* bits = nullptr;
+        sTintPixel = CreateDIBSection(nullptr, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        sTintBits = static_cast<DWORD*>(bits);
+    }
+    if (!sTintPixel) return;
+    GdiFlush();
+    *sTintBits = (GetRValue(color) << 16) | (GetGValue(color) << 8) | GetBValue(color);
+    BLENDFUNCTION blend = { AC_SRC_OVER, 0, alpha, 0 };
+    HDC mem = MemDC();
+    HGDIOBJ old = SelectObject(mem, sTintPixel);
+    AlphaBlend(hdc, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, mem, 0, 0, 1, 1, blend);
+    SelectObject(mem, old);
+}
+
+void Gfx::DrawRoundFrame(HDC hdc, const RECT& rc, int radius, COLORREF color, int width)
+{
+    HPEN pen = CreatePen(PS_INSIDEFRAME, width, color);
+    HGDIOBJ oldPen = SelectObject(hdc, pen);
+    HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+    RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, radius * 2, radius * 2);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(pen);
+}
+
+void Gfx::DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLORREF color,
+    Align align, int size, COLORREF outline, int outlineWidth)
+{
+    if (text.empty()) return;
+    const int ow = outlineWidth;
+    const RECT ink = InkBox(size, text);
+    const RECT ref = InkBox(size, L"한");
+    const int inkW = (ink.right - ink.left) + ow * 2;
+    const int refH = (ref.bottom - ref.top) + ow * 2;
+    const int boxW = box.right - box.left, boxH = box.bottom - box.top;
+
+    int left;   // 테두리까지 포함한 글씨 왼쪽 끝
+    switch (align) {
+    case Align::Left:  left = box.left + 1; break;
+    case Align::Right: left = box.right - 1 - inkW; break;
+    default:           left = box.left + (boxW - inkW) / 2; break;
+    }
+    const int top = box.top + (boxH - refH) / 2;
+    const int x = left + ow - ink.left;
+    const int y = top + ow - ref.top;
+
+    HGDIOBJ oldFont = SelectObject(hdc, PixelFont(size));
+    int oldBkMode = SetBkMode(hdc, TRANSPARENT);
+    COLORREF oldColor = SetTextColor(hdc, outline);
+    const int len = static_cast<int>(text.size());
+    for (int dy = -ow; dy <= ow; ++dy)
+        for (int dx = -ow; dx <= ow; ++dx)
+            if (dx || dy) TextOutW(hdc, x + dx, y + dy, text.c_str(), len);
+    SetTextColor(hdc, color);
+    TextOutW(hdc, x, y, text.c_str(), len);
+    SetTextColor(hdc, oldColor);
+    SetBkMode(hdc, oldBkMode);
+    SelectObject(hdc, oldFont);
 }
 
 void Gfx::DrawOutlinedText(HDC hdc, int x, int y, const std::wstring& text)
@@ -212,6 +357,12 @@ void Gfx::Release()
     if (sTextPen) DeleteObject(sTextPen);
     if (sTextBrush) DeleteObject(sTextBrush);
     if (sBlackPixel) DeleteObject(sBlackPixel);
+    if (sTintPixel) DeleteObject(sTintPixel);
+    for (auto& kv : sPixelFonts) if (kv.second) DeleteObject(kv.second);
+    sPixelFonts.clear();
+    sInkCache.clear();
+    sTintPixel = nullptr;
+    sTintBits = nullptr;
     sMemDC = nullptr;
     sTextFont = nullptr;
     sSmallFont = nullptr;
