@@ -14,8 +14,9 @@ public:
     // accept 직후: ST_CONNECTED, 버퍼 초기화
     void Init(int id, SOCKET sock);
 
-    // closesocket 후 ST_FREE
-    void Close();
+    // closesocket, 버퍼·큐 비움, ST_FREE (다른 클라이언트가 재사용)
+    // 직접 부르지 말고 Server::Disconnect를 거칠 것
+    void Reset();
 
     // 논블로킹 recv + 패킷 재조립 (false = 접속 종료)
     bool DoRecv();

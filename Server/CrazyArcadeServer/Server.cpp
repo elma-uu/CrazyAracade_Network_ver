@@ -98,23 +98,17 @@ void Server::Run()
         // 1. 새 접속 받기 (없으면 바로 넘어감)
         AcceptClients();
 
-        // 2. 받기 → 패킷 재조립 → ProcessPacket
-        //    접속이 끊겼거나 잘못된 패킷이면 닫는다 (11/8에 Server::Disconnect로 정리)
-        for (SESSION& s : g_sessions) {
-            if (s.InUse() && !s.DoRecv()) {
-                std::cout << "[" << s.GetId() << "] disconnected" << std::endl;
-                s.Close();
-            }
-        }
+        // 2. 받기 → 패킷 재조립 → ProcessPacket (접속 종료·잘못된 패킷이면 끊기)
+        for (SESSION& s : g_sessions)
+            if (s.InUse() && !s.DoRecv())
+                Disconnect(s.GetId());
+
         // 3. 게임 중인 방 갱신          (3단계)
 
-        // 4. 쌓아 둔 패킷 보내기
-        for (SESSION& s : g_sessions) {
-            if (s.InUse() && !s.FlushSend()) {
-                std::cout << "[" << s.GetId() << "] disconnected" << std::endl;
-                s.Close();
-            }
-        }
+        // 4. 쌓아 둔 패킷 보내기 (send 에러·송신 큐 초과면 끊기)
+        for (SESSION& s : g_sessions)
+            if (s.InUse() && !s.FlushSend())
+                Disconnect(s.GetId());
 
         // 5. CPU 사용량 줄이기
         Sleep(1);
@@ -168,11 +162,27 @@ int Server::FindFreeSession() const
     return -1;
 }
 
+// 계획서 3.4의 정리 순서. 2단계 이후 기능이 생기면 아래 자리에 채워 넣는다.
+void Server::Disconnect(int id)
+{
+    if (id < 0 || id >= MAX_USER)
+        return;
+    SESSION& s = g_sessions[id];
+    if (!s.InUse())          // 이미 정리된 자리 (두 번 불려도 안전)
+        return;
+
+    // 1) 게임 중이었으면 탈락 처리, 생존자 1명이면 S2C_GameOver   (11/26)
+    // 2) 방에 있었으면 퇴장 처리, 방장이었으면 위임               (11/19)
+    // 3) 전적 파일 저장                                           (11/30)
+    // 4) closesocket 후 ST_FREE로 되돌려 다음 접속자가 쓰게 한다
+    s.Reset();
+    std::cout << "[" << id << "] disconnected" << std::endl;
+}
+
 void Server::Shutdown()
 {
-    for (SESSION& s : g_sessions)
-        if (s.InUse())
-            s.Close();
+    for (int i = 0; i < MAX_USER; ++i)
+        Disconnect(i);
 
     if (m_listen != INVALID_SOCKET) {
         closesocket(m_listen);

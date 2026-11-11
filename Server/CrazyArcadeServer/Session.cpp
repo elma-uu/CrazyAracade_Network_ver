@@ -12,13 +12,17 @@ void SESSION::Init(int id, SOCKET sock)
     m_sendQueue.clear();
 }
 
-void SESSION::Close()
+// 다음 접속자가 이 자리를 그대로 쓰므로, 이전 접속자의 흔적을 모두 지운다.
+// (받다 만 조각이 남으면 새 접속자의 첫 패킷 앞에 붙고, 못 보낸 데이터가 남으면 새 접속자에게 간다)
+void SESSION::Reset()
 {
     if (m_socket != INVALID_SOCKET) {
         closesocket(m_socket);
         m_socket = INVALID_SOCKET;
     }
+    m_prevRemain = 0;
     m_sendQueue.clear();
+    m_sendQueue.shrink_to_fit();   // 큐가 크게 자랐던 자리의 메모리도 돌려준다
     m_state = ST_FREE;
 }
 

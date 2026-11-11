@@ -19,6 +19,10 @@ public:
     // ST_FREE인 SESSION 번호 (없으면 -1 → 접속 거부)
     int  FindFreeSession() const;
 
+    // 방 퇴장·탈락 처리 → closesocket → SESSION::Reset
+    // 이미 끊긴 세션에 다시 불려도 아무 일도 하지 않는다
+    void Disconnect(int id);
+
     void Shutdown();
 
 private:
