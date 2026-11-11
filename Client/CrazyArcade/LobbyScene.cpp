@@ -41,14 +41,14 @@ namespace {
         yOffset = 0;
         if (style == DigitStyle::Yellow) {
             int d = ch - L'0';
-            sx = d * 12; sy = 20; h = 12;
+            sx = d * 12; sy = 64; h = 12;
             w = (ch == L'1') ? 3 : 10;
             advance = (ch == L'1') ? 4 : 11;
         } else if (ch == L'/') {
-            sx = 100; sy = 40; w = 5; h = 12; advance = 6; yOffset = -1;
+            sx = 100; sy = 80; w = 5; h = 12; advance = 6; yOffset = -1;
         } else {
             int d = ch - L'0';
-            sx = d * 10; sy = 40; h = 10;
+            sx = d * 10; sy = 80; h = 10;
             w = (ch == L'1') ? 3 : 7;
             advance = (ch == L'1') ? 4 : 8;
         }
