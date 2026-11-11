@@ -100,9 +100,59 @@ void RoomScene::Update(float)
         if (PtInRect(&kStartButton, p)) mHoverButton = 1;
     }
 
+    LogRoomChanges();
+
+    if (Input::GetKeyDown(VK_RETURN)) PressStart();
     if (!Input::GetKeyDown(VK_LBUTTON) || !inClient) return;
     if (PtInRect(&kPowerButton, p)) { Game::Quit(); return; }
     if (mHoverButton == 0) { Leave(); return; }
+    if (mHoverButton == 1) { PressStart(); return; }
+
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    if (mHoverMap >= 0) {
+        if (!GameClient::AmIHost()) mLog.Add(L"[알림] 맵은 방장만 바꿀 수 있어요.", Pink);
+        else if (room.map != kMaps[mHoverMap]) GameClient::SelectMap(kMaps[mHoverMap]);
+        return;
+    }
+    if (mHoverColor >= 0) {
+        if (ColorTaken(room, mHoverColor, GameClient::MySlot())) mLog.Add(L"[알림] 다른 사람이 쓰고 있는 색이에요.", Pink);
+        else GameClient::SelectColor(mHoverColor);
+    }
+}
+
+void RoomScene::PressStart()
+{
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    if (GameClient::AmIHost()) {
+        if (PlayerCount(room) < 2) { mLog.Add(L"[알림] 2명 이상 모여야 시작할 수 있어요.", Pink); return; }
+        if (!CanStart(room)) { mLog.Add(L"[알림] 모두 준비해야 시작할 수 있어요.", Pink); return; }
+        mLog.Add(L"[알림] 게임 시작을 요청했습니다.", Yellow);
+        GameClient::StartGame();
+        return;
+    }
+    const int mySlot = GameClient::MySlot();
+    if (mySlot >= 0) GameClient::SetReady(!room.players[mySlot].ready);
+}
+
+// 방 상태가 바뀐 것을 채팅 칸에 알린다 (들어옴·나감·준비·방장·맵)
+void RoomScene::LogRoomChanges()
+{
+    const GameClient::RoomState& now = GameClient::CurrentRoom();
+    if (!mHasPrev) { mPrev = now; mHasPrev = true; return; }
+
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        const auto& a = mPrev.players[i];
+        const auto& b = now.players[i];
+        if (!a.exist && b.exist) mLog.Add(L"[알림] " + b.name + L"님이 들어왔습니다.", Yellow);
+        else if (a.exist && !b.exist) mLog.Add(L"[알림] " + a.name + L"님이 나갔습니다.", Yellow);
+        else if (a.exist && b.exist && a.ready != b.ready && i != now.hostSlot)
+            mLog.Add(L"[알림] " + b.name + (b.ready ? L"님이 준비했습니다." : L"님이 준비를 풀었습니다."), White);
+    }
+    if (mPrev.hostSlot != now.hostSlot && now.players[now.hostSlot].exist)
+        mLog.Add(L"[알림] " + now.players[now.hostSlot].name + L"님이 방장이 되었습니다.", Yellow);
+    if (mPrev.map != now.map)
+        mLog.Add(std::wstring(L"[알림] 맵이 ") + MapName(now.map) + L"(으)로 바뀌었습니다. 모두 다시 준비해 주세요.", Yellow);
+    mPrev = now;
 }
 
 void RoomScene::Render(HDC hdc)
