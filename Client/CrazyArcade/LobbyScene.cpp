@@ -4,6 +4,7 @@
 #include "GameClient.h"
 #include "Input.h"
 #include "Gfx.h"
+#include "Game.h"
 #include <cstdio>
 
 namespace {
@@ -174,6 +175,8 @@ void LobbyScene::Update(float)
     RECT refresh = Box(345, 62, 98, 20);
     RECT quick = Box(647, 429, 122, 45);
     RECT enter = Box(514, 495, 188, 53);
+    RECT power = Box(749, 570, 31, 27);   // 오른쪽 아래 전원 버튼
+    if (PtInRect(&power, p)) { Game::Quit(); return; }
     if (PtInRect(&refresh, p)) Refresh();
     else if (PtInRect(&quick, p)) QuickEnter();
     else if (PtInRect(&enter, p)) TryEnter();
