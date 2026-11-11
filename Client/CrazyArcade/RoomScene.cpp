@@ -1,0 +1,239 @@
+#include "RoomScene.h"
+#include "SceneManager.h"
+#include "NetworkManager.h"
+#include "GameClient.h"
+#include "Input.h"
+#include "Gfx.h"
+#include "Game.h"
+
+using namespace Ui;
+
+namespace {
+    // room_bg.bmp 기준 좌표
+    constexpr int kMapCellX = 496, kMapCellY = 200, kMapCellW = 84, kMapCellH = 70, kMapCellStep = 92;
+    constexpr int kColorX = 487, kColorY = 284, kColorW = 36, kColorH = 35;   // 팔레트 한 칸 (8칸 중 앞 7칸 사용)
+    constexpr int kColorCount = 7;
+    const RECT kLeaveButton = Box(647, 429, 122, 45);
+    const RECT kStartButton = Box(514, 495, 188, 53);
+    const RECT kPowerButton = Box(749, 570, 31, 27);
+
+    // room_sprites.bmp 안의 위치 {x, y, w, h}
+    RECT CharSprite(int color) { return { std::clamp(color, 0, 6) * 88, 0, 86, 86 }; }
+    constexpr RECT kReadyCheck = { 0, 88, 27, 32 };
+    constexpr RECT kColorCheck = { 30, 88, 30, 35 };
+
+    // 준비 안 한 '준 비'는 배경에 원래 있던 흐린 글씨 색
+    constexpr COLORREF kNotReady = RGB(0x3d, 0x7f, 0xc0);
+
+    const MAP_ID kMaps[3] = { MAP_FOREST, MAP_CITY, MAP_ICE };
+    const wchar_t* MapRule(MAP_ID map)
+    {
+        switch (map) {
+        case MAP_CITY: return L"도시 (기차 조심)";
+        case MAP_ICE:  return L"얼음 (하트 지키기)";
+        default:       return L"숲 (사과 쟁탈전)";
+        }
+    }
+
+    RECT MapCell(int k) { return Box(kMapCellX + k * kMapCellStep, kMapCellY, kMapCellW, kMapCellH); }
+    RECT ColorCell(int i) { return Box(kColorX + i * kColorW, kColorY, kColorW, kColorH); }
+
+    int PlayerCount(const GameClient::RoomState& room)
+    {
+        int n = 0;
+        for (const auto& p : room.players) if (p.exist) ++n;
+        return n;
+    }
+    // 방장을 뺀 사람 중 준비한 사람 수
+    int ReadyCount(const GameClient::RoomState& room)
+    {
+        int n = 0;
+        for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+            if (i != room.hostSlot && room.players[i].exist && room.players[i].ready) ++n;
+        return n;
+    }
+    bool CanStart(const GameClient::RoomState& room)
+    {
+        int players = PlayerCount(room);
+        return players >= 2 && ReadyCount(room) == players - 1;
+    }
+    // 다른 사람이 쓰고 있는 색인지
+    bool ColorTaken(const GameClient::RoomState& room, int color, int mySlot)
+    {
+        for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+            if (i != mySlot && room.players[i].exist && room.players[i].color == color) return true;
+        return false;
+    }
+}
+
+void RoomScene::OnEnter()
+{
+    mLog.Add(L"[알림] " + RoomNumber(GameClient::CurrentRoom().roomId) + L"번 방에 들어왔습니다.", Yellow);
+}
+
+void RoomScene::Leave()
+{
+    GameClient::LeaveRoom();
+    SceneManager::ChangeScene(SceneType::Lobby);
+}
+
+void RoomScene::Update(float)
+{
+    if (!GameClient::IsLobbyPreview() && !NetworkManager::IsConnected()) {
+        SceneManager::ChangeScene(SceneType::Login);
+        return;
+    }
+    if (GameClient::GetJoinState() != GameClient::JoinState::Joined) {
+        SceneManager::ChangeScene(SceneType::Lobby);
+        return;
+    }
+    if (Input::GetKeyDown(VK_ESCAPE)) { Leave(); return; }
+
+    // 마우스가 올라간 칸 = 노란 테두리
+    POINT p = ToCanvas(Input::GetMousePosition());
+    const bool inClient = Input::IsMouseInClient();
+    mHoverMap = mHoverColor = mHoverButton = -1;
+    if (inClient) {
+        for (int k = 0; k < 3; ++k) { RECT rc = MapCell(k); if (PtInRect(&rc, p)) mHoverMap = k; }
+        for (int i = 0; i < kColorCount; ++i) { RECT rc = ColorCell(i); if (PtInRect(&rc, p)) mHoverColor = i; }
+        if (PtInRect(&kLeaveButton, p)) mHoverButton = 0;
+        if (PtInRect(&kStartButton, p)) mHoverButton = 1;
+    }
+
+    if (!Input::GetKeyDown(VK_LBUTTON) || !inClient) return;
+    if (PtInRect(&kPowerButton, p)) { Game::Quit(); return; }
+    if (mHoverButton == 0) { Leave(); return; }
+}
+
+void RoomScene::Render(HDC hdc)
+{
+    HDC c = mCanvas.Begin(hdc);
+    Gfx::DrawOpaque(c, BitmapID::RoomBg, 0, 0, CanvasW, CanvasH, 0, 0, CanvasW, CanvasH);
+    DrawHeader(c);
+    DrawSlots(c);
+    DrawMapSelect(c);
+    DrawColors(c);
+    DrawRoomInfo(c);
+    DrawButtons(c);
+    mLog.Draw(c);
+
+    const wchar_t* notice = GameClient::AmIHost()
+        ? L"[알림] 모두 준비하면 시작을 누르세요. 맵은 방장이 골라요"
+        : L"[알림] 준비를 누르고 방장이 시작하기를 기다려요";
+    Gfx::DrawPixelText(c, Box(32, 3, 400, 23), notice, Yellow, Gfx::Align::Left);
+    mCanvas.Present(hdc);
+}
+
+void RoomScene::DrawHeader(HDC c) const
+{
+    DrawDigits(c, DigitStyle::Yellow, RoomNumber(GameClient::CurrentRoom().roomId), 31, 66);
+    Gfx::DrawPixelText(c, Box(80, 59, 60, 26), L"대기방", White, Gfx::Align::Left);
+    Gfx::DrawPixelText(c, Box(140, 59, 300, 26), L"방장이 맵을 고르고, 모두 준비하면 시작해요", Dim, Gfx::Align::Left);
+}
+
+void RoomScene::DrawSlots(HDC c) const
+{
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        const int L = SlotL[0][i], R = SlotR[0][i];
+        const int tileX = L - 1, barX = L + 2, barW = R - L - 2;
+        const GameClient::RoomPlayerView& pl = room.players[i];
+
+        if (!pl.exist) {
+            Gfx::DrawPixelText(c, Box(barX, NameTop, barW, 18), L"빈 자리", Dim);
+            continue;
+        }
+        DrawSprite(c, CharSprite(pl.color), tileX + 8, TileTop + 6, BitmapID::RoomSprites);
+        // 내 이름은 노랑
+        Gfx::DrawPixelText(c, Box(barX, NameTop, barW, 18), pl.name, i == GameClient::MySlot() ? Yellow : White);
+
+        if (i == room.hostSlot) {
+            DrawSprite(c, CrownSmall, tileX + 78, TileTop + 5);
+            Gfx::DrawPixelText(c, Box(barX, StatusTop, barW, 16), L"방   장", Pink);
+        } else if (pl.ready) {
+            DrawSprite(c, kReadyCheck, tileX + 70, TileTop + 4, BitmapID::RoomSprites);
+            Gfx::DrawPixelText(c, Box(barX, StatusTop, barW, 16), L"준   비", Yellow);
+        } else {
+            Gfx::DrawPixelText(c, Box(barX, StatusTop, barW, 16), L"준   비", kNotReady);
+        }
+    }
+}
+
+void RoomScene::DrawMapSelect(HDC c) const
+{
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    Gfx::DrawPixelText(c, Box(496, 183, 120, 16), L"맵 선택", Label, Gfx::Align::Left);
+    if (!GameClient::AmIHost())
+        Gfx::DrawPixelText(c, Box(616, 183, 150, 16), L"방장만 바꿀 수 있어요", Dim, Gfx::Align::Right);
+
+    for (int k = 0; k < 3; ++k) {
+        RECT cell = MapCell(k);
+        DrawMapIcon(c, kMaps[k], cell.left + 20, cell.top + 4, MapIconSize::Small);
+        bool selected = room.map == kMaps[k];
+        Gfx::DrawPixelText(c, Box(cell.left, cell.top + 50, kMapCellW, 16), MapName(kMaps[k]), selected ? Yellow : White);
+        RECT frame = { cell.left - 2, cell.top - 2, cell.right + 2, cell.bottom + 2 };
+        if (k == mHoverMap && GameClient::AmIHost()) Gfx::DrawRoundFrame(c, frame, 6, HoverFrame, 2);
+        else if (selected) Gfx::DrawRoundFrame(c, frame, 6, SelectFrame, 2);
+    }
+}
+
+void RoomScene::DrawColors(HDC c) const
+{
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    const int mySlot = GameClient::MySlot();
+    const int myColor = (mySlot >= 0) ? room.players[mySlot].color : -1;
+
+    for (int i = 0; i < 8; ++i) {
+        RECT cell = ColorCell(i);
+        RECT inner = { cell.left + 3, cell.top + 2, cell.right - 4, cell.bottom - 3 };
+        // 8번째(갈색)는 쓰지 않는 색, 다른 사람이 쓰는 색은 어둡게 + X
+        if (i >= kColorCount || ColorTaken(room, i, mySlot)) {
+            Gfx::FillAlpha(c, inner, RGB(6, 32, 74), 150);
+            HPEN pen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
+            HGDIOBJ old = SelectObject(c, pen);
+            MoveToEx(c, inner.left + 8, inner.top + 8, nullptr); LineTo(c, inner.right - 8, inner.bottom - 8);
+            MoveToEx(c, inner.right - 8, inner.top + 8, nullptr); LineTo(c, inner.left + 8, inner.bottom - 8);
+            SelectObject(c, old);
+            DeleteObject(pen);
+        }
+        if (i == myColor) DrawSprite(c, kColorCheck, cell.left + 3, cell.top - 6, BitmapID::RoomSprites);
+        if (i == mHoverColor) Gfx::DrawRoundFrame(c, cell, 4, HoverFrame, 2);
+    }
+}
+
+void RoomScene::DrawRoomInfo(HDC c) const
+{
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    DrawMapIcon(c, room.map, 534, 368, MapIconSize::Mid);
+    Gfx::DrawPixelText(c, Box(520, 429, 86, 29), MapName(room.map), Yellow);
+    Gfx::DrawPixelText(c, Box(646, 347, 126, 16), MapRule(room.map), Label);
+
+    const int players = PlayerCount(room);
+    DrawKeyValue(c, L"인원", std::to_wstring(players) + L" / " + std::to_wstring(MAX_ROOM_PLAYER), 654, 366, 686, 696, 770);
+    DrawKeyValue(c, L"방장", L"", 654, 385, 686, 696, 770);
+    const auto& host = room.players[std::clamp(room.hostSlot, 0, MAX_ROOM_PLAYER - 1)];
+    if (host.exist) {
+        DrawSprite(c, CrownTiny, 696, 387);
+        Gfx::DrawPixelText(c, { 714, 385, 768, 401 }, host.name, White, Gfx::Align::Left);
+    }
+    DrawKeyValue(c, L"준비", std::to_wstring(ReadyCount(room)) + L" / " + std::to_wstring(std::max(players - 1, 0)),
+        654, 404, 686, 696, 770);
+}
+
+void RoomScene::DrawButtons(HDC c) const
+{
+    const GameClient::RoomState& room = GameClient::CurrentRoom();
+    Gfx::DrawPixelText(c, kLeaveButton, L"방 나가기", White, Gfx::Align::Center, 18, RGB(0x0b, 0x3f, 0x86), 2);
+
+    if (GameClient::AmIHost()) {
+        Gfx::DrawPixelText(c, kStartButton, L"시     작", White, Gfx::Align::Center, 24, RGB(0xc3, 0x4a, 0x00), 2);
+        // 아직 시작할 수 없으면 버튼을 어둡게
+        if (!CanStart(room)) Gfx::FillAlpha(c, { kStartButton.left + 4, kStartButton.top + 4, kStartButton.right - 4, kStartButton.bottom - 4 }, RGB(6, 32, 74), 110);
+    } else {
+        const int mySlot = GameClient::MySlot();
+        bool ready = mySlot >= 0 && room.players[mySlot].ready;
+        Gfx::DrawPixelText(c, kStartButton, ready ? L"준비 취소" : L"준     비", White, Gfx::Align::Center, 24, RGB(0xc3, 0x4a, 0x00), 2);
+    }
+    if (mHoverButton == 0) Gfx::DrawRoundFrame(c, { kLeaveButton.left - 2, kLeaveButton.top - 2, kLeaveButton.right + 2, kLeaveButton.bottom + 2 }, 8, HoverFrame, 2);
+    if (mHoverButton == 1) Gfx::DrawRoundFrame(c, { kStartButton.left - 2, kStartButton.top - 2, kStartButton.right + 2, kStartButton.bottom + 2 }, 10, HoverFrame, 2);
+}
