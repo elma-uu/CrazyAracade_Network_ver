@@ -204,11 +204,12 @@ namespace {
     }
 }
 
-// 로그인: 닉네임 검사 → 중복 검사 → 닉네임 저장
-// 결과 패킷(S2C_LoginResult)과 로비 진입은 11/10
+// 로그인: 닉네임 검사 → 중복 검사 → 닉네임 저장 → S2C_LoginResult → 로비(ST_LOBBY)
+// 실패하면 ST_CONNECTED 그대로 두어 다른 닉네임으로 다시 시도할 수 있게 한다.
 void SESSION::OnLogin(const C2S_Login* p)
 {
-    if (IsLoggedIn()) {
+    if (m_state != ST_CONNECTED) {
+        // 이미 로비 이후 상태 → 응답 없이 무시
         std::cout << "[" << m_id << "] login ignored: already logged in as "
                   << m_name << std::endl;
         return;
@@ -216,14 +217,31 @@ void SESSION::OnLogin(const C2S_Login* p)
 
     if (const char* reason = CheckName(p->name)) {
         std::cout << "[" << m_id << "] login failed: " << reason << std::endl;
+        SendLoginResult(false);
         return;
     }
 
     if (IsNameInUse(p->name, m_id)) {
         std::cout << "[" << m_id << "] login failed: duplicate name " << p->name << std::endl;
+        SendLoginResult(false);
         return;
     }
 
     memcpy(m_name, p->name, MAX_NAME_LEN);   // CheckName에서 '\0'이 있는 것을 확인함
-    std::cout << "[" << m_id << "] login ok: " << m_name << std::endl;
+    m_state = ST_LOBBY;
+    SendLoginResult(true);
+    std::cout << "[" << m_id << "] login ok: " << m_name << " -> lobby" << std::endl;
+}
+
+void SESSION::SendLoginResult(bool success)
+{
+    S2C_LoginResult p{};
+    p.size    = sizeof(p);
+    p.type    = S2C_LOGIN_RESULT;
+    p.success = success;
+    p.id      = success ? m_id : -1;
+    // 전적은 RecordDB(11/28)를 만든 뒤 채운다 (11/30: 로그인 전적 전송)
+    p.win     = 0;
+    p.lose    = 0;
+    SendPacket(&p);
 }

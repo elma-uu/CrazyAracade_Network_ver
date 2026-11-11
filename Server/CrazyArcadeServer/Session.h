@@ -31,12 +31,16 @@ public:
     // 큐를 send, 보낸 만큼만 큐에서 제거 (false = 접속 종료)
     bool FlushSend();
 
+    // 송신 헬퍼
+    void SendLoginResult(bool success);
+
     bool InUse() const { return m_state != ST_FREE; }
     int  GetId() const { return m_id; }
+    SESSION_STATE GetState() const { return m_state; }
     const char* GetName() const { return m_name; }   // 로그인 전이면 ""
 
-    // 로그인을 마친 세션인지 (닉네임이 정해졌는지)
-    bool IsLoggedIn() const { return InUse() && m_name[0] != '\0'; }
+    // 로그인을 마친 세션인지 (S2C_LoginResult 성공 후 ST_LOBBY 이상)
+    bool IsLoggedIn() const { return m_state >= ST_LOBBY; }
 
 private:
     // C2S 핸들러 (ProcessPacket에서 호출)
