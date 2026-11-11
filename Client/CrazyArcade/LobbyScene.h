@@ -22,6 +22,13 @@ private:
 
     void AddLog(const std::wstring& text, COLORREF color);
 
+    // 방 칸(그림+이름+상태) 클릭 영역, 캔버스 좌표
+    static RECT RoomRect(int index);
+    void SelectRoom(int index);
+    void Refresh();       // 새로고침 버튼
+    void QuickEnter();    // 빠른 입장: 사람 있는 대기 방 → 빈 방 순서로 골라 입장
+    void TryEnter();      // 입장 버튼 / Enter
+
     HDC mCanvasDC = nullptr;
     HBITMAP mCanvas = nullptr;
     HGDIOBJ mOldCanvas = nullptr;

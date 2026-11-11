@@ -149,6 +149,73 @@ void LobbyScene::Update(float)
         SceneManager::ChangeScene(SceneType::Login);
         return;
     }
+
+    // (F5는 에코 테스트 접속 키라 새로고침에 쓰지 않는다)
+    if (Input::GetKeyDown(VK_RETURN)) TryEnter();
+    if (!Input::GetKeyDown(VK_LBUTTON) || !Input::IsMouseInClient()) return;
+
+    // 화면(1500x900) 좌표 → 캔버스(800x600) 좌표
+    POINT m = Input::GetMousePosition();
+    POINT p = { m.x * kCanvasW / Config::ScreenWidth, m.y * kCanvasH / Config::ScreenHeight };
+
+    for (int i = 0; i < MAX_ROOM; ++i) {
+        RECT rc = RoomRect(i);
+        if (PtInRect(&rc, p)) { SelectRoom(i); return; }
+    }
+    RECT refresh = Box(345, 62, 98, 20);
+    RECT quick = Box(647, 429, 122, 45);
+    RECT enter = Box(514, 495, 188, 53);
+    if (PtInRect(&refresh, p)) Refresh();
+    else if (PtInRect(&quick, p)) QuickEnter();
+    else if (PtInRect(&enter, p)) TryEnter();
+}
+
+RECT LobbyScene::RoomRect(int index)
+{
+    const int row = index / 4, col = index % 4;
+    const int top = kTileTop + kRowStep * row;
+    // 칸 그림 + 이름 칸 + 상태 칸 전체
+    return { kSlotL[row][col] - 1, top, kSlotR[row][col] + 2, kStatusTop + kRowStep * row + 16 };
+}
+
+void LobbyScene::SelectRoom(int index)
+{
+    mSelected = index;
+    const GameClient::RoomView& r = GameClient::Room(index);
+    if (CanEnter(r)) AddLog(L"[알림] " + RoomNumber(r.id) + L"번 방을 골랐습니다. 입장을 누르세요.", kYellow);
+    else AddLog(L"[알림] " + RoomNumber(r.id) + L"번 방은 " + (r.state == ROOM_PLAYING ? L"게임 중" : L"꽉 차서") +
+        L" 들어갈 수 없어요.", kPink);
+}
+
+void LobbyScene::Refresh()
+{
+    GameClient::RequestRoomList();
+    AddLog(L"[알림] 방 목록을 새로 받았습니다.", kYellow);
+}
+
+void LobbyScene::QuickEnter()
+{
+    // 사람이 있는 대기 방 먼저, 없으면 빈 방
+    int pick = -1;
+    for (int i = 0; i < MAX_ROOM && pick < 0; ++i) {
+        const GameClient::RoomView& r = GameClient::Room(i);
+        if (!IsEmpty(r) && CanEnter(r)) pick = i;
+    }
+    for (int i = 0; i < MAX_ROOM && pick < 0; ++i)
+        if (IsEmpty(GameClient::Room(i))) pick = i;
+
+    if (pick < 0) { AddLog(L"[알림] 들어갈 수 있는 방이 없어요.", kPink); return; }
+    SelectRoom(pick);
+    TryEnter();
+}
+
+void LobbyScene::TryEnter()
+{
+    if (mSelected < 0) { AddLog(L"[알림] 먼저 방을 골라 주세요.", kPink); return; }
+    const GameClient::RoomView& r = GameClient::Room(mSelected);
+    if (!CanEnter(r)) { AddLog(L"[알림] 이 방에는 들어갈 수 없어요.", kPink); return; }
+    // TODO: C2S_JoinRoom / S2C_RoomEnterResult (형민 담당 패킷)가 들어오면 여기서 보낸다
+    GameClient::ShowNotice(L"방 입장은 C2S_JoinRoom 연결 후에 됩니다");
 }
 
 void LobbyScene::AddLog(const std::wstring& text, COLORREF color)
