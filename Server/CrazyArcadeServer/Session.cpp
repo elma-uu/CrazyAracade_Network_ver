@@ -60,11 +60,16 @@ bool SESSION::FlushSend()
     return true;
 }
 
+// 한 루프에서 세션 하나가 recv할 수 있는 최대 횟수 (최대 4 × 4KB = 16KB).
+// 쉬지 않고 보내는 클라이언트 하나 때문에 메인 루프가 그 세션에 갇혀
+// 다른 세션의 처리와 FlushSend가 멈추는 것을 막는다. 남은 데이터는 다음 루프에서 받는다.
+constexpr int MAX_RECV_PER_LOOP = 4;
+
 // TCP는 보낸 단위 그대로 오지 않는다 (여러 패킷이 한 번에 / 한 패킷이 여러 번에).
 // 받은 데이터를 m_recvBuf에 모아 두고, 맨 앞 헤더의 size만큼 다 모였을 때만 처리한다.
 bool SESSION::DoRecv()
 {
-    while (true) {
+    for (int i = 0; i < MAX_RECV_PER_LOOP; ++i) {
         // 지난번에 남은 조각 뒤에 이어서 받는다
         char* buf   = reinterpret_cast<char*>(m_recvBuf) + m_prevRemain;
         int   space = RECV_BUF_SIZE - m_prevRemain;
@@ -100,7 +105,8 @@ bool SESSION::DoRecv()
             if (packet_size > remain_data)
                 break;
 
-            ProcessPacket(packet_start);
+            if (!ProcessPacket(packet_start))   // 잘못된 패킷 → 접속 종료
+                return false;
             packet_start += packet_size;
             remain_data  -= packet_size;
         }
@@ -110,11 +116,26 @@ bool SESSION::DoRecv()
         if (remain_data > 0)
             memmove(m_recvBuf, packet_start, remain_data);
     }
+    return true;   // 이번 루프 몫은 다 받음
 }
 
-void SESSION::ProcessPacket(unsigned char* packet)
+bool SESSION::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
+
+    // 종류는 맞는데 크기가 다르면 struct 밖의 버퍼를 읽게 된다 → 잘못된 패킷
+    int expected = GetPacketSize(header->type);
+    if (expected == 0) {
+        // 모르는 종류 → 로그만 남기고 무시
+        std::cout << "[" << m_id << "] unknown packet type=" << static_cast<int>(header->type)
+                  << " size=" << header->size << std::endl;
+        return true;
+    }
+    if (header->size != expected) {
+        std::cout << "[" << m_id << "] bad size for type " << static_cast<int>(header->type)
+                  << ": " << header->size << " (expected " << expected << ")" << std::endl;
+        return false;
+    }
 
     switch (header->type) {
     case C2S_ECHO:
@@ -122,10 +143,11 @@ void SESSION::ProcessPacket(unsigned char* packet)
         break;
     default:
         // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
-        std::cout << "[" << m_id << "] unknown packet type=" << static_cast<int>(header->type)
+        std::cout << "[" << m_id << "] unhandled packet type=" << static_cast<int>(header->type)
                   << " size=" << header->size << std::endl;
         break;
     }
+    return true;
 }
 
 // 1단계 에코: 받은 문자열을 그대로 돌려준다

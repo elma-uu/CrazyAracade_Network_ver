@@ -20,7 +20,8 @@ public:
     bool DoRecv();
 
     // 패킷 하나 처리 (재조립이 끝난 완성 패킷만 들어온다)
-    void ProcessPacket(unsigned char* packet);
+    // false = 크기가 맞지 않는 잘못된 패킷 → 접속 종료
+    bool ProcessPacket(unsigned char* packet);
 
     // size만큼 송신 큐에 복사 (실제 전송은 메인 루프 끝의 FlushSend)
     void SendPacket(const void* packet);
