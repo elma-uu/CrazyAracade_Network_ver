@@ -1,5 +1,6 @@
 #include "GameWorld.h"
 #include <cstdlib>
+#include <algorithm>
 #include <initializer_list>
 
 namespace {
@@ -89,6 +90,7 @@ bool GameWorld::InitBoard(MapId id)
     case MapId::Ice: layout = iceLayout; break;
     default: return false;
     }
+    bombs.clear();
     mapId = id;
     for (int row = 0; row < MapTiles; ++row) {
         for (int col = 0; col < MapTiles; ++col) {
@@ -137,4 +139,16 @@ void GameWorld::BuildMapInfo(S2C_MapInfo& out) const
             out.obstacleType[row][col] = board[row][col].variant;
         }
     }
+}
+
+/* 수정 - 2026-11-12 */
+// 서버가 50ms마다 한 번 호출한다.
+void GameWorld::StepBomb()
+{
+    for (ServerBomb& bomb : bombs)
+        bomb.Tick();
+
+    bombs.erase(std::remove_if(bombs.begin(), bombs.end(),
+        [](const ServerBomb& bomb) { return bomb.state == ServerBomb::Removed; }),
+        bombs.end());
 }
