@@ -10,6 +10,8 @@ struct ServerBomb {
     State state = Fuse;
     int ticksLeft = FuseTicks;
 
+    int reachU = 0, reachD = 0, reachL = 0, reachR = 0;
+
     // 폭발을 시작하는 틱에서만 true를 반환한다.
     bool Tick()
     {

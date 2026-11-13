@@ -41,5 +41,17 @@ int main()
     check("BOMB-03", flame);
     check("BOMB-04", !bomb.Tick() && bomb.state == ServerBomb::Removed && bomb.ticksLeft == 0);
     check("BOMB-05", !bomb.Tick() && bomb.state == ServerBomb::Removed && bomb.ticksLeft == 0);
+    world.InitBoard(MapId::Forest);
+    ServerBomb corner{1, 0, 0, 0, 5};
+    world.ResolveExplosion(corner);
+    check("EXP-01", corner.reachU == 0 && corner.reachL == 0);
+    check("EXP-02", corner.reachD == 0 && !world.IsWalkable(1, 0));
+    check("EXP-03", corner.reachR == 2 && world.IsWalkable(0, 2)
+        && !world.IsWalkable(0, 3));
+
+    ServerBomb shortRange{2, 0, 0, 1, 1};
+    world.ResolveExplosion(shortRange);
+    check("EXP-04", shortRange.reachL == 1 && shortRange.reachR == 1
+        && shortRange.reachD == 1 && !world.IsWalkable(0, 3));
     return failed;
 }

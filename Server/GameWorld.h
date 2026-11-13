@@ -18,6 +18,7 @@ public:
     static constexpr int MapTiles = MAP_TILES;
     void BuildMapInfo(S2C_MapInfo& out) const;
     void StepBomb();
+    void ResolveExplosion(ServerBomb& bomb);
     bool InitBoard(MapId id);
     bool IsWalkable(int row, int col) const
     {

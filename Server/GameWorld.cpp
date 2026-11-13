@@ -145,10 +145,43 @@ void GameWorld::BuildMapInfo(S2C_MapInfo& out) const
 // 서버가 50ms마다 한 번 호출한다.
 void GameWorld::StepBomb()
 {
-    for (ServerBomb& bomb : bombs)
-        bomb.Tick();
+    for (ServerBomb& bomb : bombs) {
+        if (bomb.Tick()) ResolveExplosion(bomb);
+    }
 
     bombs.erase(std::remove_if(bombs.begin(), bombs.end(),
         [](const ServerBomb& bomb) { return bomb.state == ServerBomb::Removed; }),
         bombs.end());
+}
+
+/* 수정 - 2026-11-13 */
+void GameWorld::ResolveExplosion(ServerBomb& bomb)
+{
+    constexpr int empty = 0, box = 1, balloon = 9;
+    board[bomb.row][bomb.col].obstacle = empty;
+
+    auto spread = [&](int dRow, int dCol) {
+        int distance = 0;
+        for (int step = 1; step <= bomb.reach; ++step) {
+            int row = bomb.row + step * dRow;
+            int col = bomb.col + step * dCol;
+            if (row < 0 || row >= MapTiles || col < 0 || col >= MapTiles) break;
+
+            Board& tile = board[row][col];
+            if (tile.obstacle == box) {
+                tile.obstacle = empty; // 상자 안의 아이템은 해당 칸에 남는다.
+                tile.variant = 0;
+                distance = step;
+                break;
+            }
+            if (tile.obstacle != empty && tile.obstacle != balloon) break;
+            distance = step;
+        }
+        return distance;
+    };
+
+    bomb.reachU = spread(-1, 0);
+    bomb.reachD = spread(1, 0);
+    bomb.reachL = spread(0, -1);
+    bomb.reachR = spread(0, 1);
 }
