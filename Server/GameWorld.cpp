@@ -81,13 +81,13 @@ struct Placement { int row, col, variant; };
 }
 
 /* 수정 - 2026-11-09 */
-bool GameWorld::InitBoard(MapId id)
+bool GameWorld::InitBoard(MAP_ID id)
 {
     const unsigned char (*layout)[MapTiles] = nullptr;
     switch (id) {
-    case MapId::Forest: layout = forestLayout; break;
-    case MapId::City: layout = cityLayout; break;
-    case MapId::Ice: layout = iceLayout; break;
+    case MAP_FOREST: layout = forestLayout; break;
+    case MAP_CITY: layout = cityLayout; break;
+    case MAP_ICE: layout = iceLayout; break;
     default: return false;
     }
     clock = FixedStepLoop{};
@@ -98,18 +98,18 @@ bool GameWorld::InitBoard(MapId id)
             Board& tile = board[row][col];
             tile = {};
             tile.obstacle = layout[row][col];
-            if (id == MapId::Forest && tile.obstacle == 3)
+            if (id == MAP_FOREST && tile.obstacle == 3)
                 tile.obstacle = 0; // 기존 2인용 바구니 제거
-            if (id == MapId::Ice && tile.obstacle == 0 && std::rand() % 10 > 5)
+            if (id == MAP_ICE && tile.obstacle == 0 && std::rand() % 10 > 5)
                 tile.obstacle = 1;
-            if (id != MapId::City && tile.obstacle == 1) {
-                tile.variant = std::rand() % (id == MapId::Forest ? 5 : 2);
+            if (id != MAP_CITY && tile.obstacle == 1) {
+                tile.variant = std::rand() % (id == MAP_FOREST ? 5 : 2);
                 if (std::rand() % 10 > 5)
                     tile.hiddenItem = 1 + std::rand() % 3;
             }
         }
     }
-    if (id == MapId::City) {
+    if (id == MAP_CITY) {
         for (const auto& p : cityVariants)
             board[p.row][p.col].variant = p.variant;
     }
@@ -121,7 +121,7 @@ bool GameWorld::InitBoard(MapId id)
             board[row][col] = {};
             board[innerRow][col] = {};
             board[row][innerCol] = {};
-            if (id == MapId::Forest)
+            if (id == MAP_FOREST)
                 board[innerRow][col].obstacle = 3;
         }
     }

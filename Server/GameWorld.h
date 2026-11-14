@@ -6,7 +6,7 @@
 #include "FixedStepLoop.h"
 
 /* 수정 - 2026-11-07 */
-#include "../Shared/MapInfo.h"
+#include "../Common/protocol.h"
 
 struct Board {
     std::uint8_t obstacle = 0;
@@ -26,7 +26,7 @@ public:
     }
     void StepBomb();
     void ResolveExplosion(ServerBomb& bomb);
-    bool InitBoard(MapId id);
+    bool InitBoard(MAP_ID id);
     bool IsWalkable(int row, int col) const
     {
         return row >= 0 && row < MapTiles && col >= 0 && col < MapTiles
@@ -37,5 +37,5 @@ private:
     FixedStepLoop clock;
     std::vector<ServerBomb> bombs;
     Board board[MapTiles][MapTiles]{};
-    MapId mapId = MapId::Forest;
+    MAP_ID mapId = MAP_FOREST;
 };

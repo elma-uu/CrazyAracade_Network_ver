@@ -12,7 +12,7 @@ int main()
     };
 
     GameWorld world;
-    for (auto id : { MapId::Forest, MapId::City, MapId::Ice }) {
+    for (auto id : { MAP_FOREST, MAP_CITY, MAP_ICE }) {
         S2C_MapInfo packet{};
         bool ok = world.InitBoard(id);
         world.BuildMapInfo(packet);
@@ -23,7 +23,7 @@ int main()
         for (int row : {0, 19})
             for (int col : {0, 19})
                 ok = ok && world.IsWalkable(row, col);
-        check(id == MapId::Forest ? "MAP-01" : id == MapId::City ? "MAP-02" : "MAP-03", ok);
+        check(id == MAP_FOREST ? "MAP-01" : id == MAP_CITY ? "MAP-02" : "MAP-03", ok);
     }
 
     ServerBomb bomb{0, 0, 4, 5, 2};
@@ -42,7 +42,7 @@ int main()
     check("BOMB-03", flame);
     check("BOMB-04", !bomb.Tick() && bomb.state == ServerBomb::Removed && bomb.ticksLeft == 0);
     check("BOMB-05", !bomb.Tick() && bomb.state == ServerBomb::Removed && bomb.ticksLeft == 0);
-    world.InitBoard(MapId::Forest);
+    world.InitBoard(MAP_FOREST);
     ServerBomb corner{1, 0, 0, 0, 5};
     world.ResolveExplosion(corner);
     check("EXP-01", corner.reachU == 0 && corner.reachL == 0);
@@ -75,7 +75,7 @@ int main()
     int moves = 0;
     auto countMove = [&] { ++moves; };
     world.Advance(11, countMove);
-    world.InitBoard(MapId::City);
+    world.InitBoard(MAP_CITY);
     world.Advance(1, countMove);
     check("TIME-05", moves == 0);
     world.Advance(11, countMove);

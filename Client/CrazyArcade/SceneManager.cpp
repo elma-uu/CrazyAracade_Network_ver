@@ -27,9 +27,9 @@ bool SceneManager::OnMapInfo(const S2C_MapInfo& packet)
 
     SceneType target;
     switch (packet.mapId) {
-    case MapId::Forest: target = SceneType::Forest; break;
-    case MapId::City:   target = SceneType::City;   break;
-    case MapId::Ice:    target = SceneType::Ice;    break;
+    case MAP_FOREST: target = SceneType::Forest; break;
+    case MAP_CITY:   target = SceneType::City;   break;
+    case MAP_ICE:    target = SceneType::Ice;    break;
     default: return false;
     }
     if (target != sPending) return false;

@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Scene.h"
 #include "TileMap.h"
-#include "../../Shared/MapInfo.h"
+#include "../../Common/protocol.h"
 #include "Player.h"
 #include "Bomb.h"
 
