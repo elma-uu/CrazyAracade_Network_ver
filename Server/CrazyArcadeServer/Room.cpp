@@ -96,6 +96,43 @@ int Room::GetPlayerCount() const
     return count;
 }
 
+void Room::Broadcast(const void* packet, int exceptId)
+{
+    for (int id : m_members)
+        if (id != -1 && id != exceptId)
+            g_sessions[id].SendPacket(packet);
+}
+
+void Room::SendRoomInfo()
+{
+    S2C_RoomInfo info;
+    FillRoomInfo(info);
+    Broadcast(&info);
+}
+
+void Room::FillRoomInfo(S2C_RoomInfo& out) const
+{
+    out = {};
+    out.size     = sizeof(out);
+    out.type     = S2C_ROOM_INFO;
+    out.roomId   = static_cast<unsigned char>(m_id);
+    out.mapId    = static_cast<MAP_ID>(m_mapId);
+    out.hostSlot = static_cast<unsigned char>(m_hostSlot);   // 빈 방이면 0xFF (보낼 일은 없음)
+
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        ROOM_PLAYER& p = out.players[i];
+        if (m_members[i] == -1) {        // 빈 자리: exist = false, id = -1
+            p.id = -1;
+            continue;
+        }
+        p.exist = true;
+        p.id    = m_members[i];
+        p.color = m_color[i];
+        p.ready = m_ready[i];
+        memcpy(p.name, g_sessions[m_members[i]].GetName(), MAX_NAME_LEN);
+    }
+}
+
 // ---------------------------------------------------------------- RoomManager
 
 RoomManager::RoomManager()

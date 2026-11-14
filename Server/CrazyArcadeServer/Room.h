@@ -21,6 +21,13 @@ public:
     int  FindSlot(int sessionId) const;   // 이 방에 없으면 -1
     int  GetPlayerCount() const;
 
+    // 방 안 전원에게 같은 패킷 (exceptId 세션은 빼고)
+    void Broadcast(const void* packet, int exceptId = -1);
+
+    // 방 안 전원에게 S2C_RoomInfo. 입장·퇴장·맵·색상·레디처럼 방 안에서 무언가 바뀔 때마다 부른다
+    void SendRoomInfo();
+    void FillRoomInfo(S2C_RoomInfo& out) const;
+
     int        GetId() const              { return m_id; }
     ROOM_STATE GetState() const           { return m_state; }
     int        GetMapId() const           { return m_mapId; }

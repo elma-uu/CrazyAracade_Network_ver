@@ -254,8 +254,8 @@ void SESSION::SendLoginResult(bool success)
     SendPacket(&p);
 }
 
-// 로비에서 방 선택 → 입장 결과. 성공하면 ST_ROOM
-// (방 안 전원에게 S2C_RoomInfo는 11/13, 로비 방 목록 갱신은 11/18)
+// 로비에서 방 선택 → 입장 결과. 성공하면 ST_ROOM, 방 안 전원(나 포함)에게 S2C_RoomInfo
+// (로비 방 목록 갱신은 11/18)
 void SESSION::OnJoinRoom(const C2S_JoinRoom* p)
 {
     if (m_state != ST_LOBBY) {
@@ -283,9 +283,12 @@ void SESSION::OnJoinRoom(const C2S_JoinRoom* p)
     m_roomId = roomId;
     m_slot   = slot;
     m_state  = ST_ROOM;
-    SendRoomEnterResult(true, roomId, slot, ENTER_OK);
+    SendRoomEnterResult(true, roomId, slot, ENTER_OK);   // 입장 결과가 RoomInfo보다 먼저 간다
+
+    Room& room = g_roomManager.Get(roomId);
+    room.SendRoomInfo();
     std::cout << "[" << m_id << "] joined room " << roomId << " slot " << slot
-              << (g_roomManager.Get(roomId).IsHost(m_id) ? " (host)" : "") << std::endl;
+              << (room.IsHost(m_id) ? " (host)" : "") << std::endl;
 }
 
 void SESSION::SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason)
