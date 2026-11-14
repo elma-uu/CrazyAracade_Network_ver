@@ -90,6 +90,7 @@ bool GameWorld::InitBoard(MapId id)
     case MapId::Ice: layout = iceLayout; break;
     default: return false;
     }
+    clock = FixedStepLoop{};
     bombs.clear();
     mapId = id;
     for (int row = 0; row < MapTiles; ++row) {

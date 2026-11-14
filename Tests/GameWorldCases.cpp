@@ -1,5 +1,6 @@
 #include "../Server/GameWorld.h"
 #include <cstdio>
+#include <string>
 #include <initializer_list>
 
 int main()
@@ -53,5 +54,31 @@ int main()
     world.ResolveExplosion(shortRange);
     check("EXP-04", shortRange.reachL == 1 && shortRange.reachR == 1
         && shortRange.reachD == 1 && !world.IsWalkable(0, 3));
+    FixedStepLoop loop;
+    std::string events;
+    auto move = [&] { events += 'M'; };
+    auto tickBomb = [&] { events += 'B'; };
+    loop.Advance(11, move, tickBomb);
+    check("TIME-01", events.empty());
+    loop.Advance(1, move, tickBomb);
+    loop.Advance(38, move, tickBomb);
+    check("TIME-02", events == "MMMMB");
+    loop.Advance(250, move, tickBomb);
+    const std::string expected = events;
+    check("TIME-03", std::count(events.begin(), events.end(), 'M') == 25
+        && std::count(events.begin(), events.end(), 'B') == 6
+        && events.substr(events.size() - 2) == "MB");
+    events.clear();
+    FixedStepLoop single;
+    single.Advance(300, move, tickBomb);
+    check("TIME-04", events == expected);
+    int moves = 0;
+    auto countMove = [&] { ++moves; };
+    world.Advance(11, countMove);
+    world.InitBoard(MapId::City);
+    world.Advance(1, countMove);
+    check("TIME-05", moves == 0);
+    world.Advance(11, countMove);
+    check("TIME-06", moves == 1);
     return failed;
 }
