@@ -33,11 +33,14 @@ public:
 
     // 송신 헬퍼
     void SendLoginResult(bool success);
+    void SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason);
 
     bool InUse() const { return m_state != ST_FREE; }
     int  GetId() const { return m_id; }
     SESSION_STATE GetState() const { return m_state; }
     const char* GetName() const { return m_name; }   // 로그인 전이면 ""
+    int  GetRoomId() const { return m_roomId; }       // -1 = 로비
+    int  GetSlot() const { return m_slot; }           // 방 안 자리 0~3, 로비면 -1
 
     // 로그인을 마친 세션인지 (S2C_LoginResult 성공 후 ST_LOBBY 이상)
     bool IsLoggedIn() const { return m_state >= ST_LOBBY; }
@@ -46,11 +49,14 @@ private:
     // C2S 핸들러 (ProcessPacket에서 호출)
     void OnEcho(const C2S_Echo* p);
     void OnLogin(const C2S_Login* p);
+    void OnJoinRoom(const C2S_JoinRoom* p);       // 로비에서 방 선택
 
     int           m_id = -1;
     SOCKET        m_socket = INVALID_SOCKET;
     SESSION_STATE m_state = ST_FREE;
     char          m_name[MAX_NAME_LEN]{};   // UTF-8 닉네임, 로그인 전에는 ""
+    int           m_roomId = -1;            // -1 = 로비
+    int           m_slot = -1;              // 방 안 자리 0~3
 
     // 받다 만 패킷 조각을 보관하는 버퍼
     unsigned char m_recvBuf[RECV_BUF_SIZE]{};

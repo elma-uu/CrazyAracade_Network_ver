@@ -1,4 +1,5 @@
 #include "Session.h"
+#include "Room.h"
 #include "Server.h"
 #include <cstring>
 #include <iostream>
@@ -9,6 +10,8 @@ void SESSION::Init(int id, SOCKET sock)
     m_socket = sock;
     m_state = ST_CONNECTED;
     m_name[0] = '\0';
+    m_roomId = -1;
+    m_slot = -1;
     m_prevRemain = 0;
     m_sendQueue.clear();
 }
@@ -22,6 +25,8 @@ void SESSION::Reset()
         m_socket = INVALID_SOCKET;
     }
     m_name[0] = '\0';              // 나간 사람의 닉네임은 다시 쓸 수 있게 된다
+    m_roomId = -1;
+    m_slot = -1;
     m_prevRemain = 0;
     m_sendQueue.clear();
     m_sendQueue.shrink_to_fit();   // 큐가 크게 자랐던 자리의 메모리도 돌려준다
@@ -150,6 +155,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_LOGIN:
         OnLogin(reinterpret_cast<C2S_Login*>(packet));
         break;
+    case C2S_JOIN_ROOM:
+        OnJoinRoom(reinterpret_cast<C2S_JoinRoom*>(packet));
+        break;
     default:
         // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
         std::cout << "[" << m_id << "] unhandled packet type=" << static_cast<int>(header->type)
@@ -243,5 +251,51 @@ void SESSION::SendLoginResult(bool success)
     // 전적은 RecordDB(11/28)를 만든 뒤 채운다 (11/30: 로그인 전적 전송)
     p.win     = 0;
     p.lose    = 0;
+    SendPacket(&p);
+}
+
+// 로비에서 방 선택 → 입장 결과. 성공하면 ST_ROOM
+// (방 안 전원에게 S2C_RoomInfo는 11/13, 로비 방 목록 갱신은 11/18)
+void SESSION::OnJoinRoom(const C2S_JoinRoom* p)
+{
+    if (m_state != ST_LOBBY) {
+        // 로그인 전이거나 이미 방/게임 중 → 응답 없이 무시
+        std::cout << "[" << m_id << "] join room ignored: not in lobby" << std::endl;
+        return;
+    }
+
+    int roomId = p->roomId;
+    if (!RoomManager::IsValidRoomId(roomId)) {
+        // 클라 화면에는 1~8번만 있으므로 그 밖의 번호는 잘못된 요청 → 무시
+        std::cout << "[" << m_id << "] join room ignored: invalid room " << roomId << std::endl;
+        return;
+    }
+
+    int slot = -1;
+    unsigned char failReason = ENTER_OK;
+    if (!g_roomManager.JoinRoom(m_id, roomId, slot, failReason)) {
+        std::cout << "[" << m_id << "] join room " << roomId << " failed: "
+                  << (failReason == ENTER_PLAYING ? "playing" : "full") << std::endl;
+        SendRoomEnterResult(false, roomId, -1, failReason);
+        return;
+    }
+
+    m_roomId = roomId;
+    m_slot   = slot;
+    m_state  = ST_ROOM;
+    SendRoomEnterResult(true, roomId, slot, ENTER_OK);
+    std::cout << "[" << m_id << "] joined room " << roomId << " slot " << slot
+              << (g_roomManager.Get(roomId).IsHost(m_id) ? " (host)" : "") << std::endl;
+}
+
+void SESSION::SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason)
+{
+    S2C_RoomEnterResult p{};
+    p.size       = sizeof(p);
+    p.type       = S2C_ROOM_ENTER_RESULT;
+    p.success    = success;
+    p.roomId     = static_cast<unsigned char>(roomId);
+    p.slot       = success ? static_cast<unsigned char>(slot) : 0xFF;   // 실패면 0xFF
+    p.failReason = static_cast<ENTER_FAIL>(failReason);
     SendPacket(&p);
 }
