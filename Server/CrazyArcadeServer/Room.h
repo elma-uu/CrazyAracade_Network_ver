@@ -14,6 +14,7 @@ public:
     bool Enter(int sessionId, int& outSlot, unsigned char& failReason);
 
     // 방장이 나가면 남은 사람 중 가장 먼저 들어온 사람에게 위임
+    // → 남은 사람 전원에게 S2C_PlayerLeave, S2C_RoomInfo (나간 사람에게는 보내지 않음)
     // 마지막 사람이 나가면 빈 방(RS_EMPTY)으로 되돌린다
     void Leave(int sessionId);
 

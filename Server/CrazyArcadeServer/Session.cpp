@@ -158,6 +158,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_JOIN_ROOM:
         OnJoinRoom(reinterpret_cast<C2S_JoinRoom*>(packet));
         break;
+    case C2S_LEAVE_ROOM:
+        OnLeaveRoom(reinterpret_cast<C2S_LeaveRoom*>(packet));
+        break;
     default:
         // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
         std::cout << "[" << m_id << "] unhandled packet type=" << static_cast<int>(header->type)
@@ -289,6 +292,24 @@ void SESSION::OnJoinRoom(const C2S_JoinRoom* p)
     room.SendRoomInfo();
     std::cout << "[" << m_id << "] joined room " << roomId << " slot " << slot
               << (room.IsHost(m_id) ? " (host)" : "") << std::endl;
+}
+
+// 방에서 나가기 → 로비. 남은 사람에게 알리는 것(S2C_PlayerLeave, S2C_RoomInfo)과
+// 방장 위임은 Room::Leave가 한다. 나간 본인에게는 따로 응답하지 않는다.
+// (게임 중 나가기는 접속 종료로만 처리 → 11/26, 로비 방 목록 갱신은 11/18)
+void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
+{
+    if (m_state != ST_ROOM) {
+        std::cout << "[" << m_id << "] leave room ignored: not in a room" << std::endl;
+        return;
+    }
+
+    int roomId = m_roomId;
+    g_roomManager.LeaveRoom(m_id);
+    m_roomId = -1;
+    m_slot   = -1;
+    m_state  = ST_LOBBY;
+    std::cout << "[" << m_id << "] left room " << roomId << " -> lobby" << std::endl;
 }
 
 void SESSION::SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason)

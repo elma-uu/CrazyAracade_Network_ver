@@ -71,7 +71,18 @@ void Room::Leave(int sessionId)
                 next = i;
         }
         m_hostSlot = next;
+        std::cout << "[room " << m_id << "] host -> slot " << next
+                  << " (id " << m_members[next] << ")" << std::endl;
     }
+
+    // 남은 사람들에게: 누가 나갔는지 + 지금 방장 자리 → 바뀐 방 정보
+    S2C_PlayerLeave leave{};
+    leave.size        = sizeof(leave);
+    leave.type        = S2C_PLAYER_LEAVE;
+    leave.id          = sessionId;
+    leave.newHostSlot = static_cast<unsigned char>(m_hostSlot);
+    Broadcast(&leave);
+    SendRoomInfo();
 }
 
 bool Room::IsHost(int sessionId) const
