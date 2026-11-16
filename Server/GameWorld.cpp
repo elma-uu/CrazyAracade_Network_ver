@@ -92,6 +92,7 @@ bool GameWorld::InitBoard(MAP_ID id)
     }
     clock = FixedStepLoop{};
     bombs.clear();
+    nextBombId = 0;
     mapId = id;
     for (int row = 0; row < MapTiles; ++row) {
         for (int col = 0; col < MapTiles; ++col) {
@@ -185,4 +186,25 @@ void GameWorld::ResolveExplosion(ServerBomb& bomb)
     bomb.reachD = spread(1, 0);
     bomb.reachL = spread(0, -1);
     bomb.reachR = spread(0, 1);
+}
+
+/* 수정 - 2026-11-16 */
+bool GameWorld::PlaceBomb(const C2S_Attack& request, const BombOwner& owner)
+{
+    if (request.size != sizeof(request) || request.type != C2S_ATTACK)
+        return false;
+    if (!owner.alive || owner.slot < 0 || owner.slot >= MAX_ROOM_PLAYER
+        || owner.reach < 1 || !IsWalkable(owner.row, owner.col))
+        return false;
+
+    int limit = owner.maxBombs;
+    if (mapId == MAP_FOREST) limit -= owner.apples;
+    auto owned = std::count_if(bombs.begin(), bombs.end(),
+        [&](const ServerBomb& bomb) { return bomb.ownerSlot == owner.slot; });
+    if (owned >= limit) return false;
+
+    bombs.push_back({nextBombId, owner.slot, owner.row, owner.col, owner.reach});
+    ++nextBombId;
+    board[owner.row][owner.col].obstacle = 9;
+    return true;
 }

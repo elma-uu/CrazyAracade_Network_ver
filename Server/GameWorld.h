@@ -14,6 +14,13 @@ struct Board {
     std::uint8_t hiddenItem = 0;
 };
 
+// 공격을 요청한 세션의 서버 측 플레이어 상태
+struct BombOwner {
+    int slot, row, col;
+    bool alive;
+    int reach = 1, maxBombs = 2, apples = 0;
+};
+
 class GameWorld {
 public:
     static constexpr int MapTiles = MAP_TILES;
@@ -24,6 +31,7 @@ public:
     {
         clock.Advance(elapsedMs, stepMovement, [this] { StepBomb(); });
     }
+    bool PlaceBomb(const C2S_Attack& request, const BombOwner& owner);
     void StepBomb();
     void ResolveExplosion(ServerBomb& bomb);
     bool InitBoard(MAP_ID id);
@@ -34,6 +42,7 @@ public:
     }
 
 private:
+    int nextBombId = 0;
     FixedStepLoop clock;
     std::vector<ServerBomb> bombs;
     Board board[MapTiles][MapTiles]{};

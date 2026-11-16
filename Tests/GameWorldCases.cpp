@@ -80,5 +80,33 @@ int main()
     check("TIME-05", moves == 0);
     world.Advance(11, countMove);
     check("TIME-06", moves == 1);
+    world.InitBoard(MAP_CITY);
+    C2S_Attack attack{sizeof(C2S_Attack), C2S_ATTACK};
+    BombOwner owner{0, 0, 0, true};
+    check("ATK-01", world.PlaceBomb(attack, owner) && !world.IsWalkable(0, 0)
+        && !world.PlaceBomb(attack, owner));
+    owner.col = 1;
+    bool second = world.PlaceBomb(attack, owner);
+    owner.col = 2;
+    check("ATK-02", second && !world.PlaceBomb(attack, owner));
+    owner.slot = 1;
+    check("ATK-03", world.PlaceBomb(attack, owner));
+    owner.slot = 0;
+    owner.col = 3;
+    world.Advance(1000, [] {});
+    check("ATK-04", world.IsWalkable(0, 0) && !world.PlaceBomb(attack, owner));
+    world.Advance(500, [] {});
+    check("ATK-05", world.PlaceBomb(attack, owner));
+    world.InitBoard(MAP_FOREST);
+    owner.col = 0;
+    owner.apples = 2;
+    check("ATK-06", !world.PlaceBomb(attack, owner) && world.IsWalkable(0, 0));
+    owner.apples = 0;
+    owner.alive = false;
+    bool deadRejected = !world.PlaceBomb(attack, owner);
+    owner.alive = true;
+    attack.size = 0;
+    check("ATK-07", deadRejected && !world.PlaceBomb(attack, owner)
+        && world.IsWalkable(0, 0));
     return failed;
 }
