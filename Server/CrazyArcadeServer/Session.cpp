@@ -161,6 +161,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_LEAVE_ROOM:
         OnLeaveRoom(reinterpret_cast<C2S_LeaveRoom*>(packet));
         break;
+    case C2S_START_GAME:
+        OnStartGame(reinterpret_cast<C2S_StartGame*>(packet));
+        break;
     default:
         // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
         std::cout << "[" << m_id << "] unhandled packet type=" << static_cast<int>(header->type)
@@ -310,6 +313,17 @@ void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
     m_slot   = -1;
     m_state  = ST_LOBBY;
     std::cout << "[" << m_id << "] left room " << roomId << " -> lobby" << std::endl;
+}
+
+// 방장의 시작 요청. 방장이 아니거나 조건(2명 이상, 방장 포함 전원 레디)이 안 되면
+// 응답 없이 무시하고 로그만 남긴다 (Room::RequestStart)
+void SESSION::OnStartGame(const C2S_StartGame*)
+{
+    if (m_state != ST_ROOM) {
+        std::cout << "[" << m_id << "] start ignored: not in a room" << std::endl;
+        return;
+    }
+    g_roomManager.Get(m_roomId).RequestStart(m_id);
 }
 
 void SESSION::SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason)

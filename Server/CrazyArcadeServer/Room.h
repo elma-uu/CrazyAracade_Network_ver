@@ -29,6 +29,17 @@ public:
     void SendRoomInfo();
     void FillRoomInfo(S2C_RoomInfo& out) const;
 
+    // 레디 켜기/끄기만 한다. 게임을 시작하지는 않는다 (C2S_Ready 처리에서 호출 → SendRoomInfo)
+    void SetReady(int slot, bool ready);
+    bool IsReady(int slot) const { return m_ready[slot]; }
+
+    // 2명 이상 && 방장 포함 전원 레디 (혼자서는 불가)
+    bool CanStart() const;
+
+    // 대기 중 && 방장 && CanStart() 일 때만 true. 안 되면 이유를 로그로 남기고 false
+    // (조건을 통과하면 11/17부터 StartGame()으로 게임을 시작한다)
+    bool RequestStart(int sessionId);
+
     int        GetId() const              { return m_id; }
     ROOM_STATE GetState() const           { return m_state; }
     int        GetMapId() const           { return m_mapId; }

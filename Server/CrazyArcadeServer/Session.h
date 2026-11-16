@@ -51,6 +51,7 @@ private:
     void OnLogin(const C2S_Login* p);
     void OnJoinRoom(const C2S_JoinRoom* p);       // 로비에서 방 선택
     void OnLeaveRoom(const C2S_LeaveRoom* p);     // 방 → 로비
+    void OnStartGame(const C2S_StartGame* p);     // 방장만
 
     int           m_id = -1;
     SOCKET        m_socket = INVALID_SOCKET;

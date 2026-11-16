@@ -121,6 +121,45 @@ void Room::SendRoomInfo()
     Broadcast(&info);
 }
 
+void Room::SetReady(int slot, bool ready)
+{
+    if (slot < 0 || slot >= MAX_ROOM_PLAYER || m_members[slot] == -1)
+        return;
+    m_ready[slot] = ready;
+}
+
+bool Room::CanStart() const
+{
+    int count = 0;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        if (m_members[i] == -1) continue;   // 빈 자리
+        if (!m_ready[i]) return false;      // 레디 안 한 사람 있음 (방장 포함)
+        ++count;
+    }
+    return count >= 2;                      // 혼자서는 시작 불가
+}
+
+// SESSION::OnStartGame에서 호출. 클라 화면에서도 막지만 서버가 한 번 더 확인한다.
+bool Room::RequestStart(int sessionId)
+{
+    const char* reason = nullptr;
+    if (m_state != RS_WAITING)      reason = "not waiting";
+    else if (!IsHost(sessionId))    reason = "not host";
+    else if (GetPlayerCount() < 2)  reason = "need 2+ players";
+    else if (!CanStart())           reason = "not everyone is ready";
+
+    if (reason) {
+        std::cout << "[room " << m_id << "] start rejected (id " << sessionId << "): "
+                  << reason << std::endl;
+        return false;
+    }
+
+    // 게임 시작(StartGame → GameWorld::Init, S2C_GameStart, S2C_MapInfo)은 11/17
+    std::cout << "[room " << m_id << "] start approved by host " << sessionId
+              << " (" << GetPlayerCount() << " players)" << std::endl;
+    return true;
+}
+
 void Room::FillRoomInfo(S2C_RoomInfo& out) const
 {
     out = {};
