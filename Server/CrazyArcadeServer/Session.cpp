@@ -290,6 +290,15 @@ void SESSION::SendRoomList()
     SendPacket(&p);
 }
 
+void SESSION::EnterGame()
+{
+    if (m_state != ST_ROOM) {
+        std::cout << "[" << m_id << "] enter game ignored: not in a room" << std::endl;
+        return;
+    }
+    m_state = ST_INGAME;
+}
+
 // 로비에서 방 선택 → 입장 결과. 성공하면 ST_ROOM, 방 안 전원(나 포함)에게 S2C_RoomInfo
 // (로비 방 목록 갱신은 11/18)
 void SESSION::OnJoinRoom(const C2S_JoinRoom* p)

@@ -36,6 +36,9 @@ public:
     void SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason);
     void SendRoomList();   // 로비 진입·새로고침·방 상태 변경 시
 
+    // S2C_GameStart를 받은 뒤: 방(ST_ROOM) → 게임 중(ST_INGAME). Room::SendGameStart에서 호출
+    void EnterGame();
+
     bool InUse() const { return m_state != ST_FREE; }
     int  GetId() const { return m_id; }
     SESSION_STATE GetState() const { return m_state; }

@@ -205,6 +205,49 @@ bool Room::RequestStart(int sessionId)
     return true;
 }
 
+void Room::GetStartTile(int slot, int& x, int& y)
+{
+    static constexpr int kCorners[MAX_ROOM_PLAYER][2] = {
+        { 0, 0 }, { MAP_TILES - 1, 0 }, { 0, MAP_TILES - 1 }, { MAP_TILES - 1, MAP_TILES - 1 },
+    };
+    const int i = (slot >= 0 && slot < MAX_ROOM_PLAYER) ? slot : 0;
+    x = kCorners[i][0];
+    y = kCorners[i][1];
+}
+
+void Room::SendGameStart()
+{
+    S2C_GameStart p{};
+    p.size  = sizeof(p);
+    p.type  = S2C_GAME_START;
+    p.mapId = static_cast<MAP_ID>(m_mapId);
+
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        START_PLAYER& sp = p.players[i];
+        if (m_members[i] == -1) {   // 빈 자리
+            sp.id = -1;
+            continue;
+        }
+        int x = 0, y = 0;
+        GetStartTile(i, x, y);
+        sp.id    = m_members[i];
+        sp.x     = static_cast<unsigned char>(x);
+        sp.y     = static_cast<unsigned char>(y);
+        sp.color = m_color[i];
+    }
+
+    // 내용은 같고 mySlot만 받는 사람의 자리로 바꿔 보낸다
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        if (m_members[i] == -1) continue;
+        p.mySlot = static_cast<unsigned char>(i);
+        SESSION& s = g_sessions[m_members[i]];
+        s.SendPacket(&p);
+        s.EnterGame();
+    }
+    std::cout << "[room " << m_id << "] S2C_GameStart sent (map " << m_mapId << ", "
+              << GetPlayerCount() << " players)" << std::endl;
+}
+
 void Room::FillRoomInfo(S2C_RoomInfo& out) const
 {
     out = {};

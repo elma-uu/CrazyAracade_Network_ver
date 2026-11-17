@@ -45,6 +45,15 @@ public:
     // 2명 이상 && 방장 포함 전원 레디 (혼자서는 불가)
     bool CanStart() const;
 
+    // 게임 시작 위치: 맵의 네 모서리 (계획서 1장). 자리 0 왼쪽 위, 1 오른쪽 위, 2 왼쪽 아래, 3 오른쪽 아래
+    // x = 열(col), y = 행(row). GameWorld도 같은 칸을 비워 두고 플레이어를 놓아야 한다
+    static void GetStartTile(int slot, int& x, int& y);
+
+    // 방 안 전원에게 S2C_GameStart (mySlot은 받는 사람마다 다름), 받은 세션은 ST_INGAME으로.
+    // 맵·참가자 ID·시작 위치·대기방에서 고른 색을 담는다. 빈 자리는 id = -1
+    // Room::StartGame(GameWorld::Init 뒤, S2C_MapInfo 앞)에서 부른다
+    void SendGameStart();
+
     // 대기 중 && 방장 && CanStart() 일 때만 true. 안 되면 이유를 로그로 남기고 false
     // (조건을 통과하면 11/17부터 StartGame()으로 게임을 시작한다)
     bool RequestStart(int sessionId);
