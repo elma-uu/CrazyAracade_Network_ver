@@ -220,6 +220,45 @@ struct S2C_GameOver {
 };
 #pragma pack(pop)
 
+// 패킷 종류별 정해진 크기 (모르는 종류면 0).
+// 받는 쪽은 header.size가 이 값과 다르면 처리하지 말 것:
+// 크기가 짧은 패킷을 struct로 읽으면 패킷 뒤의 버퍼(이전 데이터)까지 읽게 된다.
+inline int GetPacketSize(unsigned char type)
+{
+    switch (type) {
+    case C2S_ECHO:              return sizeof(C2S_Echo);
+    case S2C_ECHO:              return sizeof(S2C_Echo);
+    case C2S_LOGIN:             return sizeof(C2S_Login);
+    case S2C_LOGIN_RESULT:      return sizeof(S2C_LoginResult);
+    case C2S_ROOM_LIST:         return sizeof(C2S_RoomList);
+    case S2C_ROOM_LIST:         return sizeof(S2C_RoomList);
+    case C2S_JOIN_ROOM:         return sizeof(C2S_JoinRoom);
+    case S2C_ROOM_ENTER_RESULT: return sizeof(S2C_RoomEnterResult);
+    case S2C_ROOM_INFO:         return sizeof(S2C_RoomInfo);
+    case C2S_SELECT_MAP:        return sizeof(C2S_SelectMap);
+    case C2S_SELECT_COLOR:      return sizeof(C2S_SelectColor);
+    case C2S_READY:             return sizeof(C2S_Ready);
+    case C2S_START_GAME:        return sizeof(C2S_StartGame);
+    case C2S_LEAVE_ROOM:        return sizeof(C2S_LeaveRoom);
+    case S2C_PLAYER_LEAVE:      return sizeof(S2C_PlayerLeave);
+    case S2C_GAME_START:        return sizeof(S2C_GameStart);
+    case S2C_MAP_INFO:          return sizeof(S2C_MapInfo);
+    case C2S_INPUT:             return sizeof(C2S_Input);
+    case S2C_MOVE:              return sizeof(S2C_Move);
+    case C2S_ATTACK:            return sizeof(C2S_Attack);
+    case S2C_ATTACK:            return sizeof(S2C_Attack);
+    case S2C_EXPLODE:           return sizeof(S2C_Explode);
+    case S2C_BLOCK_BREAK:       return sizeof(S2C_BlockBreak);
+    case S2C_ITEM_SPAWN:        return sizeof(S2C_ItemSpawn);
+    case S2C_ITEM_GET:          return sizeof(S2C_ItemGet);
+    case S2C_HIT:               return sizeof(S2C_Hit);
+    case S2C_STAGE_STATE:       return sizeof(S2C_StageState);
+    case S2C_TRAIN:             return sizeof(S2C_Train);
+    case S2C_GAME_OVER:         return sizeof(S2C_GameOver);
+    default:                    return 0;
+    }
+}
+
 // 서버/클라 구조체 크기가 어긋나면 컴파일 단계에서 바로 알 수 있게 한다
 static_assert(sizeof(PACKET_HEADER) == 3, "header must be 3 bytes");
 static_assert(sizeof(S2C_MapInfo) == 804, "S2C_MapInfo must be 804 bytes");
