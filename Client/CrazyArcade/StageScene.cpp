@@ -4,6 +4,8 @@
 #include "GameData.h"
 #include "Input.h"
 #include "Gfx.h"
+#include "GameClient.h"
+#include "NetworkManager.h"
 
 namespace {
     const KeyBinding kKeyBindings[2] = {
@@ -14,8 +16,18 @@ namespace {
 
 StageScene::StageScene()
 {
-    for (int i = 0; i < PlayerCount; ++i)
-        mPlayers[i] = std::make_unique<Player>(i, kKeyBindings[i], GameData::playerColor[i], mMap);
+    static_assert(MaxPlayers == MAX_ROOM_PLAYER);
+    mOnline = GameClient::IsInGame();
+    if (!mOnline) {
+        for (int i = 0; i < PlayerCount; ++i)
+            mPlayers[i] = std::make_unique<Player>(i, kKeyBindings[i], GameData::playerColor[i], mMap);
+        return;
+    }
+    // 온라인: 서버가 알려 준 참가자만, 자리 번호 그대로 (입력은 서버로 보내므로 키 설정은 쓰지 않음)
+    const GameClient::GameStartInfo& start = GameClient::GameStart();
+    for (int i = 0; i < MaxPlayers; ++i)
+        if (start.players[i].exist)
+            mPlayers[i] = std::make_unique<Player>(i, kKeyBindings[0], start.players[i].color, mMap);
 }
 
 void StageScene::OnEnter()
@@ -24,20 +36,38 @@ void StageScene::OnEnter()
     Audio::PlayEffect("GameStart.wav");
 
     BuildMap(mMap);
-    for (int i = 0; i < PlayerCount; ++i) {
-        POINT spawn = GetSpawnTile(i);
-        mPlayers[i]->Spawn(spawn.x, spawn.y);
+    if (!mOnline) {
+        for (int i = 0; i < PlayerCount; ++i) {
+            POINT spawn = GetSpawnTile(i);
+            mPlayers[i]->Spawn(spawn.x, spawn.y);
+        }
+        return;
+    }
+    // 온라인: 서버가 정한 시작 칸 (맵 네 모서리). 진짜 맵은 뒤이어 오는 S2C_MapInfo가 덮어쓰지만,
+    // 그 전까지 블록 위에 캐릭터가 그려지지 않게 시작 칸은 비워 둔다
+    const GameClient::GameStartInfo& start = GameClient::GameStart();
+    for (int i = 0; i < MaxPlayers; ++i) {
+        if (!mPlayers[i]) continue;
+        const GameClient::StartPlayerView& sp = start.players[i];
+        mMap.At(sp.row, sp.col) = Tile{};
+        mPlayers[i]->Spawn(sp.col, sp.row);
     }
 }
 
 void StageScene::Update(float)
 {
+    if (mOnline) {
+        // 서버와 끊기면 로그인 화면으로 (끊김 안내는 GameClient가 띄운다)
+        if (!NetworkManager::IsConnected()) SceneManager::ChangeScene(SceneType::Login);
+        return;
+    }
     if (IsGameOver()) {
         if (Input::GetKeyDown('R')) SceneManager::ChangeScene(SceneType::Title);
         return;
     }
 
     for (auto& player : mPlayers) {
+        if (!player) continue;
         player->HandleInput();
         if (player->WantsToPlaceBomb() && CanPlaceBomb(*player)) PlaceBomb(*player);
     }
@@ -45,10 +75,11 @@ void StageScene::Update(float)
 
 void StageScene::FixedUpdate()
 {
+    if (mOnline) return;   // 판정은 서버가 한다
     if (IsGameOver()) return;
 
-    for (auto& player : mPlayers) player->FixedUpdate();
-    for (auto& player : mPlayers) PickUpItem(*player);
+    for (auto& player : mPlayers) if (player) player->FixedUpdate();
+    for (auto& player : mPlayers) if (player) PickUpItem(*player);
 
     UpdateBombs();
     if (IsGameOver()) return;
@@ -126,7 +157,7 @@ void StageScene::EndGame(int winnerIndex)
 void StageScene::RenderPlayersAt(HDC hdc, int row, int col) const
 {
     for (const auto& player : mPlayers)
-        if (player->GetRow() == row && player->GetCol() == col) player->Render(hdc);
+        if (player && player->GetRow() == row && player->GetCol() == col) player->Render(hdc);
 }
 
 void StageScene::Render(HDC hdc)
@@ -135,13 +166,30 @@ void StageScene::Render(HDC hdc)
     RenderBackground(hdc);
     for (const auto& bomb : mBombs) bomb->Render(hdc);
     RenderMap(hdc);
+    if (mOnline) {
+        RenderOnlineNames(hdc);
+        return;   // 스테이지 HUD(사과·시간·하트)는 S2C_StageState를 붙인 뒤에
+    }
     RenderHud(hdc);
     if (IsGameOver()) RenderResult(hdc);
+}
+
+void StageScene::RenderOnlineNames(HDC hdc) const
+{
+    // 누가 누구인지 알 수 있게 캐릭터 머리 위에 닉네임, 내 캐릭터는 노란색
+    const GameClient::GameStartInfo& start = GameClient::GameStart();
+    for (int i = 0; i < MaxPlayers; ++i) {
+        if (!mPlayers[i]) continue;
+        POINT c = TileMap::TileCenter(mPlayers[i]->GetRow(), mPlayers[i]->GetCol());
+        COLORREF color = (i == start.mySlot) ? RGB(255, 230, 0) : RGB(255, 255, 255);
+        Gfx::DrawSmallText(hdc, c.x - 30, c.y - 62, start.players[i].name, color);
+    }
 }
 
 void StageScene::RenderCommonHud(HDC hdc) const
 {
     Gfx::DrawOpaque(hdc, BitmapID::GameUI, 0, 0, 1450, 900, 0, 0, 1040, 780);
+    if (mOnline) return;   // 2인용 초상화·아이템 칸은 한 컴퓨터 모드에서만
 
     const int portraitX[PlayerCount] = { 175, 1195 };
     const int iconX[PlayerCount] = { 50, 1200 };
