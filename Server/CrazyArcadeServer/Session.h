@@ -55,6 +55,7 @@ private:
     void OnLeaveRoom(const C2S_LeaveRoom* p);     // 방 → 로비
     void OnSelectMap(const C2S_SelectMap* p);     // 방장만
     void OnSelectColor(const C2S_SelectColor* p);
+    void OnReady(const C2S_Ready* p);             // 레디 토글
     void OnStartGame(const C2S_StartGame* p);     // 방장만
 
     int           m_id = -1;

@@ -170,6 +170,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_SELECT_COLOR:
         OnSelectColor(reinterpret_cast<C2S_SelectColor*>(packet));
         break;
+    case C2S_READY:
+        OnReady(reinterpret_cast<C2S_Ready*>(packet));
+        break;
     case C2S_START_GAME:
         OnStartGame(reinterpret_cast<C2S_StartGame*>(packet));
         break;
@@ -372,6 +375,27 @@ void SESSION::OnSelectColor(const C2S_SelectColor* p)
         room.FillRoomInfo(info);
         SendPacket(&info);
     }
+}
+
+// 레디 켜기/끄기 (방장 포함 누구나). 게임 시작은 하지 않는다 → 방장의 C2S_StartGame에서
+// 바뀌면 방 안 전원에게 S2C_RoomInfo
+void SESSION::OnReady(const C2S_Ready* p)
+{
+    if (m_state != ST_ROOM) {
+        std::cout << "[" << m_id << "] ready ignored: not in a room" << std::endl;
+        return;
+    }
+    Room& room = g_roomManager.Get(m_roomId);
+    if (room.GetState() != RS_WAITING) {
+        std::cout << "[" << m_id << "] ready ignored: room " << m_roomId << " not waiting" << std::endl;
+        return;
+    }
+    bool ready = p->ready;   // bool 바이트가 0/1이 아니어도 true/false로 정리
+    if (room.IsReady(m_slot) == ready)
+        return;              // 바뀐 것 없음
+    room.SetReady(m_slot, ready);
+    room.SendRoomInfo();
+    std::cout << "[" << m_id << "] ready " << (ready ? "on" : "off") << std::endl;
 }
 
 // 방장의 시작 요청. 방장이 아니거나 조건(2명 이상, 방장 포함 전원 레디)이 안 되면
