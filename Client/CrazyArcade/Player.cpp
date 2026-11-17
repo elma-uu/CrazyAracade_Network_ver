@@ -5,23 +5,37 @@
 #include "GameData.h"
 
 namespace {
-    // 색 선택 칸마다 돌릴 색상(hue) 각도: 빨강, 주황, 노랑, 초록, 민트, 파랑, 보라
     const double kColorHueTable[GameData::ColorCount] = { 0, 30, 60, 120, 150, 210, 270 };
     constexpr int kHitBlinkMs = 500;
 
-    // 원본과 같은 빠르기: 12ms마다 speed/8칸 = speed 1.0일 때 1초에 약 10.4칸
-    constexpr float kTilesPerSecond = 1000.0f / (8.0f * Config::FixedStepMs);
-    // 이보다 덜 걸쳐 있으면 모서리 보정을 하지 않는다 (딱 중앙일 때 좌우로 떨리지 않게)
-    constexpr float kSlideEpsilon = 0.01f;
+    constexpr float kTilesPerSecond = 5.0f;
+
+    constexpr float kBodySize = 1.0f;
+    constexpr float kHalfBody = kBodySize / 2.0f;
+    constexpr float kEdgeEps = 0.0001f;
+
+    int FirstTile(float lo) { return static_cast<int>(std::floor(lo + kEdgeEps)); }
+    int LastTile(float hi)  { return static_cast<int>(std::floor(hi - kEdgeEps)); }
+
+    // ---- 모서리 보정 ----
+    // 0.0 = 보정 없음, 0.2 = 8px 이내만, 0.5 = 걸쳐 있으면 거의 항상
+    constexpr float kSlideRange = 0.3f;
+    // 미끄러지는 빠르기 (이동 속도에 곱하는 값). 1.0 = 걷는 속도와 같음, 0.5 = 절반
+    constexpr float kSlideSpeed = 1.0f;
+
+    float MoveToward(float current, float target, float step)
+    {
+        if (current < target) return std::min(current + step, target);
+        return std::max(current - step, target);
+    }
 }
 
-bool Player::sShowFootDebug = false;   // [디버그] F3으로 켬
+bool Player::sShowFootDebug = false;
 
 Player::Player(int index, const KeyBinding& keys, int colorIndex, const TileMap& map)
     : mIndex(index), mKeys(keys), mMap(map)
 {
     int color = std::clamp(colorIndex, 0, GameData::ColorCount - 1);
-    // 원본 스프라이트의 빨간 계열(0~20도)만 골라 색을 바꾼다
     mSprite = Gfx::CreateHueShiftedCopy(ResourceManager::Get(BitmapID::Player), kColorHueTable[color], 0, 20);
 }
 
@@ -57,7 +71,6 @@ int Player::KeyOf(Dir dir) const
 
 void Player::HandleInput()
 {
-    // 새로 눌린 방향을 맨 앞으로 → 여러 방향을 누르고 있으면 마지막에 누른 쪽으로 간다
     for (Dir dir : { Dir::Up, Dir::Down, Dir::Left, Dir::Right }) {
         if (!Input::GetKeyDown(KeyOf(dir))) continue;
         auto it = std::find(std::begin(mDirOrder), std::end(mDirOrder), dir);
@@ -90,24 +103,28 @@ void Player::FixedUpdate()
     if (dir == Dir::None) return;
     mFacing = dir;
 
-    // 고정 스텝 한 번 = 0.012초. 서버도 같은 값으로 계산하면 결과가 똑같다
     const float dt = Config::FixedStepMs / 1000.0f;
     if (Move(dir, mSpeed * kTilesPerSecond * dt))
-        mAnimFrame = (mAnimFrame + 1) % 16;   // 실제로 움직일 때만 걷는 모습
+        mAnimFrame = (mAnimFrame + 1) % 16;
 }
 
-bool Player::IsOpen(bool horizontal, int mainTile, int sideTile) const
+bool Player::IsAreaOpen(bool horizontal, int mainLo, int mainHi, int sideLo, int sideHi) const
 {
-    // 맵 밖·블록·물풍선은 막힘 (TileMap::IsWalkable은 (행, 열) 순서)
-    if (horizontal) return mMap.IsWalkable(sideTile, mainTile);
-    return mMap.IsWalkable(mainTile, sideTile);
+    for (int m = mainLo; m <= mainHi; ++m) {
+        for (int s = sideLo; s <= sideHi; ++s) {
+            bool open = false;
+            if (horizontal) open = mMap.IsWalkable(s, m);
+            else            open = mMap.IsWalkable(m, s);
+            if (!open) return false;
+        }
+    }
+    return true;
 }
 
 bool Player::Move(Dir dir, float distance)
 {
-    // main = 움직이는 축, side = 그 옆 축 (걸치기가 일어나는 축)
     bool horizontal = false;
-    int sign = 1;   // +1 = 오른쪽/아래, -1 = 왼쪽/위
+    int sign = 1;
     switch (dir) {
     case Dir::Left:  horizontal = true;  sign = -1; break;
     case Dir::Right: horizontal = true;  sign = 1;  break;
@@ -124,40 +141,42 @@ bool Player::Move(Dir dir, float distance)
     const float mainBefore = *main;
     const float sideBefore = *side;
 
-    const int footMain = FootTile(*main);
-    const int footSide = FootTile(*side);
+    const int mainLo = FirstTile(*main + 0.5f - kHalfBody);
+    const int mainHi = LastTile(*main + 0.5f + kHalfBody);
+    const int sideLo = FirstTile(*side + 0.5f - kHalfBody);
+    const int sideHi = LastTile(*side + 0.5f + kHalfBody);
 
-    if (IsOpen(horizontal, footMain + sign, footSide)) {
-        // 앞 칸이 비었으면 그대로 간다 (옆으로 걸쳐 있으면 걸친 채로)
-        *main += sign * distance;
-    } else {
-        // 앞이 막혔으면 지금 칸 중앙까지만 간다.
-        // 이미 중앙을 지났으면 뒤로 당기지 않고 그 자리에 멈춘다.
-        // 서 있는 칸은 검사하지 않으므로 막 설치한 물풍선에서는 빠져나갈 수 있다
-        const float center = static_cast<float>(footMain);
+    int ahead = mainHi + 1;
+    if (sign < 0) ahead = mainLo - 1;
+
+    float target = *main + sign * distance;
+    if (!IsAreaOpen(horizontal, ahead, ahead, sideLo, sideHi)) {
         if (sign > 0) {
-            if (*main < center) *main = std::min(*main + distance, center);
+            const float limit = ahead - 0.5f - kHalfBody;
+            if (target > limit) target = limit;
         } else {
-            if (*main > center) *main = std::max(*main - distance, center);
+            const float limit = ahead + 0.5f + kHalfBody;
+            if (target < limit) target = limit;
         }
-
-        // 모서리 보정: 옆 줄로 걸쳐 있고, 그 옆 줄의 앞이 비어 있으면 그쪽으로 미끄러져 들어간다
-        const float offset = *side - footSide;   // -0.5 ~ +0.5
-        if (std::fabs(offset) > kSlideEpsilon) {
-            int sideDir = 1;
-            if (offset < 0) sideDir = -1;
-            if (IsOpen(horizontal, footMain, footSide + sideDir) &&
-                IsOpen(horizontal, footMain + sign, footSide + sideDir)) {
-                *side += sideDir * distance;
-            }
-        }
+        Slide(horizontal, ahead, *side, distance);
     }
+    *main = target;
     return *main != mainBefore || *side != sideBefore;
+}
+
+void Player::Slide(bool horizontal, int ahead, float& side, float distance)
+{
+    const int footSide = FootTile(side);
+    const float offset = std::fabs(side - footSide);
+    if (offset == 0.0f || offset > kSlideRange) return;
+
+    if (!IsAreaOpen(horizontal, ahead, ahead, footSide, footSide)) return;
+
+    side = MoveToward(side, static_cast<float>(footSide), distance * kSlideSpeed);
 }
 
 void Player::Render(HDC hdc) const
 {
-    // 피격 중에는 100ms 간격으로 깜빡임
     if (IsHit() && (GetTickCount64() / 100) % 2 == 1) return;
 
     int drawX = Config::MapOriginX + static_cast<int>(mPx * Config::TileSize);
@@ -182,7 +201,6 @@ void Player::Render(HDC hdc) const
 
 void Player::RenderFootDebug(HDC hdc) const
 {
-    // 지금 판정에 쓰는 칸 (GetRow/GetCol) = 하늘색 테두리
     RECT tile = { Config::MapOriginX + GetCol() * Config::TileSize,
                   Config::MapOriginY + GetRow() * Config::TileSize, 0, 0 };
     tile.right = tile.left + Config::TileSize;
@@ -193,12 +211,11 @@ void Player::RenderFootDebug(HDC hdc) const
     FrameRect(hdc, &inner, cyan);
     DeleteObject(cyan);
 
-    // 발밑 중심점 = 실수 좌표(mPx, mPy) + 반 칸 = 칸 단위 (mPx + 0.5, mPy + 0.5)
     const int fx = Config::MapOriginX + static_cast<int>((mPx + 0.5f) * Config::TileSize);
     const int fy = Config::MapOriginY + static_cast<int>((mPy + 0.5f) * Config::TileSize);
     constexpr int r = 4;
     HBRUSH neon = CreateSolidBrush(RGB(57, 255, 20));
-    HPEN outline = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));   // 어떤 바닥 위에서도 보이게 검은 테두리
+    HPEN outline = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     HGDIOBJ oldBrush = SelectObject(hdc, neon);
     HGDIOBJ oldPen = SelectObject(hdc, outline);
     Ellipse(hdc, fx - r, fy - r, fx + r + 1, fy + r + 1);
