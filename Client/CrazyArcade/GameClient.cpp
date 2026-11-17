@@ -18,6 +18,8 @@ GameClient::JoinState GameClient::sJoinState = GameClient::JoinState::None;
 std::wstring GameClient::sJoinFailReason;
 GameClient::RoomState GameClient::sRoom;
 int GameClient::sMySlot = -1;
+bool GameClient::sInGame = false;
+GameClient::GameStartInfo GameClient::sGameStart;
 std::vector<GameClient::ChatLine> GameClient::sLobbyChat;
 std::vector<GameClient::ChatLine> GameClient::sRoomChat;
 std::wstring GameClient::sNotice;
@@ -99,6 +101,8 @@ void GameClient::ResetLogin()
     sRoom = RoomState{};
     sMySlot = -1;
     sJoinState = JoinState::None;
+    sInGame = false;
+    sGameStart = GameStartInfo{};
     ClearChat(ChatChannel::Room);
     ClearChat(ChatChannel::Lobby);   // 로그아웃하면 로비 채팅도 비운다
 }
@@ -248,6 +252,8 @@ void GameClient::LeaveRoom()
     sRoom = RoomState{};
     sMySlot = -1;
     sJoinState = JoinState::None;
+    sInGame = false;
+    sGameStart = GameStartInfo{};
     ClearChat(ChatChannel::Room);   // 방 채팅은 그 방에 있는 동안만
 }
 
@@ -329,6 +335,34 @@ void GameClient::OnPlayerLeave(const S2C_PlayerLeave* p)
     for (RoomPlayerView& v : sRoom.players)
         if (v.exist && v.id == p->id) v = RoomPlayerView{};
     sRoom.hostSlot = p->newHostSlot;
+}
+
+void GameClient::OnGameStart(const S2C_GameStart* p)
+{
+    // 방에 들어가 있을 때만 (요청하지 않은 시작 알림은 무시)
+    if (sJoinState != JoinState::Joined) return;
+    if (p->mapId < MAP_FOREST || p->mapId > MAP_ICE || p->mySlot >= MAX_ROOM_PLAYER) {
+        OutputDebugStringA("[net] S2C_GameStart: 잘못된 맵/자리, 무시\n");
+        return;
+    }
+
+    sGameStart = GameStartInfo{};
+    sGameStart.map = p->mapId;
+    sGameStart.mySlot = p->mySlot;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        const START_PLAYER& s = p->players[i];
+        if (s.id < 0) continue;   // 빈 자리
+        StartPlayerView& v = sGameStart.players[i];
+        v.exist = true;
+        v.id = s.id;
+        v.col = std::min<int>(s.x, MAP_TILES - 1);
+        v.row = std::min<int>(s.y, MAP_TILES - 1);
+        v.color = std::min<int>(s.color, kColorCount - 1);
+        for (const RoomPlayerView& rp : sRoom.players)   // 닉네임은 방 정보에서
+            if (rp.exist && rp.id == s.id) v.name = rp.name;
+    }
+    sMySlot = p->mySlot;
+    sInGame = true;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)

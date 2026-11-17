@@ -86,6 +86,23 @@ public:
     static void SetReady(bool ready);
     static void StartGame();             // 방장만
 
+    // ---- 게임 시작 (S2C_GameStart) ----
+    struct StartPlayerView {
+        bool         exist = false;   // false = 빈 자리
+        int          id = -1;
+        std::wstring name;            // 대기방 정보에서 찾은 닉네임
+        int          col = 0, row = 0;  // 시작 칸 (서버가 정함: 맵 네 모서리)
+        int          color = 0;
+    };
+    struct GameStartInfo {
+        MAP_ID          map = MAP_FOREST;
+        int             mySlot = -1;
+        StartPlayerView players[MAX_ROOM_PLAYER];
+    };
+    // 서버가 게임 시작을 알려 왔는지 (방을 나가거나 끊기면 false)
+    static bool IsInGame() { return sInGame; }
+    static const GameStartInfo& GameStart() { return sGameStart; }
+
     // ---- 채팅 ----
     // 로비 채팅 = 접속한 모든 사람, 방 채팅 = 같은 방 사람만. 안내 문구([알림])도 같은 칸에 쌓인다.
     // 아직 서버 연동 전이라 내 화면에만 쌓인다
@@ -104,6 +121,7 @@ public:
     static void OnRoomEnterResult(const S2C_RoomEnterResult* p);
     static void OnRoomInfo(const S2C_RoomInfo* p);
     static void OnPlayerLeave(const S2C_PlayerLeave* p);
+    static void OnGameStart(const S2C_GameStart* p);
 
 private:
     static void BuildPreviewRoom(int roomId);
@@ -127,6 +145,9 @@ private:
     static std::wstring sJoinFailReason;
     static RoomState sRoom;
     static int sMySlot;
+
+    static bool sInGame;
+    static GameStartInfo sGameStart;
 
     static std::vector<ChatLine> sLobbyChat;
     static std::vector<ChatLine> sRoomChat;
