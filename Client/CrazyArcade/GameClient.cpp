@@ -30,7 +30,7 @@ std::wstring GameClient::sLastEcho;
 
 namespace {
     constexpr ULONGLONG kNoticeMs = 3000;
-    constexpr int kColorCount = 8;   // 대기방 색 0~7 (팔레트 8칸)
+    constexpr int kColorCount = 7;   // 대기방 색 0~6 (계획서·protocol.h, 인게임 캐릭터도 7색)
 
     // 서버가 보낸 UTF-8 이름(끝 '\0' 없을 수도 있음) → 화면용 wstring
     std::wstring Utf8NameToWide(const char* name, size_t maxLen)

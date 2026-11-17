@@ -18,7 +18,10 @@ namespace {
     // room_bg.bmp 기준 좌표
     constexpr int kMapCellX = 496, kMapCellY = 200, kMapCellW = 84, kMapCellH = 70, kMapCellStep = 92;
     constexpr int kColorX = 487, kColorY = 284, kColorW = 36, kColorH = 35;   // 팔레트 한 칸
-    constexpr int kColorCount = 8;    // 빨강·노랑·주황·초록·청록·파랑·보라·검정
+    // 빨강·노랑·주황·초록·청록·파랑·보라 (0~6, 계획서·서버와 같음).
+    // 배경 그림의 팔레트는 8칸이라 마지막(검정) 칸은 고를 수 없게 어둡게 덮는다
+    constexpr int kColorCount = 7;
+    constexpr int kPaletteCells = 8;
     const RECT kLeaveButton = Box(647, 429, 122, 45);
     const RECT kStartButton = Box(514, 495, 188, 53);
     const RECT kPowerButton = Box(749, 570, 31, 27);
@@ -269,6 +272,10 @@ void RoomScene::DrawColors(HDC c) const
         }
         if (i == myColor) DrawSprite(c, kColorCheck, cell.left + 3, cell.top - 4, BitmapID::RoomSprites);
         if (i == mHoverColor) Gfx::DrawRoundFrame(c, cell, 4, HoverFrame, 2);
+    }
+    for (int i = kColorCount; i < kPaletteCells; ++i) {
+        RECT cell = ColorCell(i);
+        Gfx::FillAlpha(c, { cell.left + 3, cell.top + 2, cell.right - 4, cell.bottom - 3 }, RGB(6, 32, 74), 200);
     }
 }
 
