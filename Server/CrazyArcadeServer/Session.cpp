@@ -155,6 +155,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_LOGIN:
         OnLogin(reinterpret_cast<C2S_Login*>(packet));
         break;
+    case C2S_ROOM_LIST:
+        OnRoomList(reinterpret_cast<C2S_RoomList*>(packet));
+        break;
     case C2S_JOIN_ROOM:
         OnJoinRoom(reinterpret_cast<C2S_JoinRoom*>(packet));
         break;
@@ -257,6 +260,24 @@ void SESSION::SendLoginResult(bool success)
     // 전적은 RecordDB(11/28)를 만든 뒤 채운다 (11/30: 로그인 전적 전송)
     p.win     = 0;
     p.lose    = 0;
+    SendPacket(&p);
+}
+
+// 로비 방 목록 요청 (클라가 로비에 들어올 때·새로고침 버튼) → S2C_RoomList
+void SESSION::OnRoomList(const C2S_RoomList*)
+{
+    if (m_state != ST_LOBBY) {
+        // 방 안·게임 중에는 로비 화면이 없으므로 무시
+        std::cout << "[" << m_id << "] room list ignored: not in lobby" << std::endl;
+        return;
+    }
+    SendRoomList();
+}
+
+void SESSION::SendRoomList()
+{
+    S2C_RoomList p;
+    g_roomManager.FillRoomList(p);   // 방 1~8의 맵·인원·상태·방장 이름
     SendPacket(&p);
 }
 

@@ -34,6 +34,7 @@ public:
     // 송신 헬퍼
     void SendLoginResult(bool success);
     void SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason);
+    void SendRoomList();   // 로비 진입·새로고침·방 상태 변경 시
 
     bool InUse() const { return m_state != ST_FREE; }
     int  GetId() const { return m_id; }
@@ -49,6 +50,7 @@ private:
     // C2S 핸들러 (ProcessPacket에서 호출)
     void OnEcho(const C2S_Echo* p);
     void OnLogin(const C2S_Login* p);
+    void OnRoomList(const C2S_RoomList* p);       // 로비 방 목록 요청
     void OnJoinRoom(const C2S_JoinRoom* p);       // 로비에서 방 선택
     void OnLeaveRoom(const C2S_LeaveRoom* p);     // 방 → 로비
     void OnStartGame(const C2S_StartGame* p);     // 방장만
