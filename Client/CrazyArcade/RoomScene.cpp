@@ -101,6 +101,15 @@ void RoomScene::Update(float)
         SceneManager::ChangeScene(SceneType::Lobby);
         return;
     }
+    // 서버가 S2C_GameStart를 보냄 → 그 맵의 스테이지로
+    if (GameClient::IsInGame()) {
+        switch (GameClient::GameStart().map) {
+        case MAP_CITY: SceneManager::ChangeScene(SceneType::City); break;
+        case MAP_ICE:  SceneManager::ChangeScene(SceneType::Ice);  break;
+        default:       SceneManager::ChangeScene(SceneType::Forest); break;
+        }
+        return;
+    }
     if (Input::GetKeyDown(VK_ESCAPE)) {
         // 채팅 입력 중이면 입력만 끝낸다
         if (mInput.Focused()) mInput.SetFocus(false);
