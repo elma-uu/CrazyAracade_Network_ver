@@ -278,7 +278,14 @@ void GameClient::SetReady(bool ready)
 void GameClient::StartGame()
 {
     if (!AmIHost()) return;
-    if (!sLobbyPreview) { NetworkManager::SendStartGame(); return; }
+    if (!sLobbyPreview) {
+        // 계획서·서버(Room::CanStart)는 방장까지 전원 레디여야 시작된다.
+        // 방장 화면에는 준비 버튼 대신 시작 버튼 하나만 있으므로, 시작을 누르면 방장 레디를
+        // 먼저 보내고 바로 시작을 요청한다 (서버는 받은 순서대로 처리)
+        NetworkManager::SendReady(true);
+        NetworkManager::SendStartGame();
+        return;
+    }
     ShowNotice(L"미리보기에서는 게임을 시작하지 않아요");
 }
 
