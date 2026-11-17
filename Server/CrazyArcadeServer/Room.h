@@ -34,6 +34,10 @@ public:
     // 같은 맵을 다시 고르면 바뀐 것이 없으므로 true만 돌려주고 레디는 그대로 둔다
     bool SelectMap(int sessionId, int mapId);
 
+    // 자리(slot)의 캐릭터 색 변경. 색은 0~6 (원본 캐릭터 7색, protocol.h C2S_SelectColor)
+    // 대기 중이 아니거나, 범위 밖이거나, 같은 방의 다른 사람이 쓰는 색이면 false
+    bool SetColor(int slot, int color);
+
     // 레디 켜기/끄기만 한다. 게임을 시작하지는 않는다 (C2S_Ready 처리에서 호출 → SendRoomInfo)
     void SetReady(int slot, bool ready);
     bool IsReady(int slot) const { return m_ready[slot]; }

@@ -144,6 +144,28 @@ bool Room::SelectMap(int sessionId, int mapId)
     return true;
 }
 
+bool Room::SetColor(int slot, int color)
+{
+    constexpr int kColorCount = 7;   // 0~6
+
+    const char* reason = nullptr;
+    if (m_state != RS_WAITING)                                          reason = "not waiting";
+    else if (slot < 0 || slot >= MAX_ROOM_PLAYER || m_members[slot] == -1) reason = "invalid slot";
+    else if (color < 0 || color >= kColorCount)                         reason = "invalid color";
+    else {
+        for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+            if (i != slot && m_members[i] != -1 && m_color[i] == color) { reason = "color in use"; break; }
+    }
+
+    if (reason) {
+        std::cout << "[room " << m_id << "] select color " << color << " rejected (slot " << slot
+                  << "): " << reason << std::endl;
+        return false;
+    }
+    m_color[slot] = static_cast<unsigned char>(color);
+    return true;
+}
+
 void Room::SetReady(int slot, bool ready)
 {
     if (slot < 0 || slot >= MAX_ROOM_PLAYER || m_members[slot] == -1)

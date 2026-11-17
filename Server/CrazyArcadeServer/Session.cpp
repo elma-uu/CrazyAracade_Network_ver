@@ -167,6 +167,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_SELECT_MAP:
         OnSelectMap(reinterpret_cast<C2S_SelectMap*>(packet));
         break;
+    case C2S_SELECT_COLOR:
+        OnSelectColor(reinterpret_cast<C2S_SelectColor*>(packet));
+        break;
     case C2S_START_GAME:
         OnStartGame(reinterpret_cast<C2S_StartGame*>(packet));
         break;
@@ -351,6 +354,24 @@ void SESSION::OnSelectMap(const C2S_SelectMap* p)
     int before = room.GetMapId();
     if (room.SelectMap(m_id, p->mapId) && room.GetMapId() != before)
         room.SendRoomInfo();
+}
+
+// 색상 선택 (누구나). 바뀌면 방 안 전원에게 S2C_RoomInfo.
+// 거부되면(범위 밖·다른 사람이 쓰는 색) 지금 방 상태를 다시 보내 요청한 클라 화면을 서버와 맞춘다
+void SESSION::OnSelectColor(const C2S_SelectColor* p)
+{
+    if (m_state != ST_ROOM) {
+        std::cout << "[" << m_id << "] select color ignored: not in a room" << std::endl;
+        return;
+    }
+    Room& room = g_roomManager.Get(m_roomId);
+    if (room.SetColor(m_slot, p->color)) {
+        room.SendRoomInfo();
+    } else {
+        S2C_RoomInfo info;
+        room.FillRoomInfo(info);
+        SendPacket(&info);
+    }
 }
 
 // 방장의 시작 요청. 방장이 아니거나 조건(2명 이상, 방장 포함 전원 레디)이 안 되면
