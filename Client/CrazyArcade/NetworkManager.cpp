@@ -13,9 +13,6 @@ std::wstring NetworkManager::sLastError;
 bool NetworkManager::sConnectionLost = false;
 
 namespace {
-    // 없는 IP로 블로킹 connect를 하면 20초 넘게 창이 멈추므로 최대 이만큼만 기다린다
-    constexpr int kConnectTimeoutMs = 4000;
-
     std::wstring ConnectErrorText(int err)
     {
         switch (err) {
@@ -84,41 +81,17 @@ bool NetworkManager::Connect(const char* ip, unsigned short port)
         return false;
     }
 
-    // 논블로킹으로 바꾼 뒤 connect를 걸고, select로 접속 완료를 최대 kConnectTimeoutMs까지만 기다린다.
-    // 이후 recv/send도 논블로킹이라 게임 프레임이 네트워크를 기다리느라 멈추지 않는다
+    // 계획서 3.7: 블로킹 connect로 접속이 끝날 때까지 기다린 뒤 논블로킹으로 바꾼다.
+    // (서버가 없는 IP면 Windows가 포기할 때까지 약 20초 기다리므로 그동안 창이 멈출 수 있다)
+    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        sLastError = ConnectErrorText(WSAGetLastError());
+        closesocket(sock);
+        return false;
+    }
+
+    // 접속된 뒤부터는 논블로킹: recv/send가 기다리느라 게임 프레임이 멈추지 않게
     u_long noblock = 1;
     ioctlsocket(sock, FIONBIO, &noblock);
-
-    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
-        int err = WSAGetLastError();
-        if (err != WSAEWOULDBLOCK) {
-            closesocket(sock);
-            sLastError = ConnectErrorText(err);
-            return false;
-        }
-
-        fd_set writeSet, errorSet;
-        FD_ZERO(&writeSet);
-        FD_ZERO(&errorSet);
-        FD_SET(sock, &writeSet);
-        FD_SET(sock, &errorSet);
-        timeval timeout = { kConnectTimeoutMs / 1000, (kConnectTimeoutMs % 1000) * 1000 };
-
-        int ret = select(0, nullptr, &writeSet, &errorSet, &timeout);
-        if (ret == 0) {
-            closesocket(sock);
-            sLastError = ConnectErrorText(WSAETIMEDOUT);
-            return false;
-        }
-        if (ret == SOCKET_ERROR || FD_ISSET(sock, &errorSet)) {
-            int soError = 0;
-            int len = sizeof(soError);
-            getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&soError), &len);
-            closesocket(sock);
-            sLastError = ConnectErrorText(soError ? soError : WSAGetLastError());
-            return false;
-        }
-    }
 
     // 키 입력 같은 작은 패킷을 모아 보내지 않도록 Nagle 끄기
     BOOL nodelay = TRUE;

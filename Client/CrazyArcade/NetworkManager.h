@@ -7,7 +7,8 @@
 // 받은 패킷은 종류별로 GameClient::On~ 에 넘긴다.
 class NetworkManager {
 public:
-    // 논블로킹 connect + select로 최대 4초 대기. 실패하면 false, 이유는 LastError()
+    // 블로킹 connect 성공 후 ioctlsocket(FIONBIO)로 논블로킹 전환 (계획서 3.7)
+    // 실패하면 false, 이유는 LastError()
     static bool Connect(const char* ip, unsigned short port);
     static void Disconnect();
     static bool IsConnected() { return sSocket != INVALID_SOCKET; }

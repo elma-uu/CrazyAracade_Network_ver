@@ -26,7 +26,7 @@ private:
     int mFocus = FieldName;
     std::wstring mMessage;           // 입력 오류·접속 결과 안내
     COLORREF mMessageColor = RGB(255, 120, 120);
-    // Enter 직후 한 프레임은 "접속 중..."을 그리고, 다음 프레임에 접속한다 (접속은 최대 4초 멈춤)
+    // Enter 직후 한 프레임은 "접속 중..."을 그리고, 다음 프레임에 접속한다 (블로킹 connect 동안 화면이 멈추므로)
     bool mConnectPending = false;
     bool mConnected = false;   // 접속 성공, 로그인 요청 보냄 (응답 대기 또는 성공)
 };
