@@ -56,6 +56,8 @@ void StageScene::OnEnter()
 
 void StageScene::Update(float)
 {
+    if (Input::GetKeyDown(VK_F3)) Player::ToggleFootDebug();   // [디버그] 발밑 중심점 표시
+
     if (mOnline) {
         // 서버와 끊기면 로그인 화면으로 (끊김 안내는 GameClient가 띄운다)
         if (!NetworkManager::IsConnected()) SceneManager::ChangeScene(SceneType::Login);
