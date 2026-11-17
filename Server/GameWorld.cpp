@@ -191,10 +191,15 @@ void GameWorld::ResolveExplosion(ServerBomb& bomb)
 /* 수정 - 2026-11-16 */
 bool GameWorld::PlaceBomb(const C2S_Attack& request, const BombOwner& owner)
 {
+    return PlaceBomb(request, owner, nullptr);
+}
+
+bool GameWorld::PlaceBomb(const C2S_Attack& request, const BombOwner& owner, S2C_Attack* placed)
+{
     if (request.size != sizeof(request) || request.type != C2S_ATTACK)
         return false;
     if (!owner.alive || owner.slot < 0 || owner.slot >= MAX_ROOM_PLAYER
-        || owner.reach < 1 || !IsWalkable(owner.row, owner.col))
+        || owner.reach < 1 || owner.reach > 255 || !IsWalkable(owner.row, owner.col))
         return false;
 
     int limit = owner.maxBombs;
@@ -204,6 +209,14 @@ bool GameWorld::PlaceBomb(const C2S_Attack& request, const BombOwner& owner)
     if (owned >= limit) return false;
 
     bombs.push_back({nextBombId, owner.slot, owner.row, owner.col, owner.reach});
+    if (placed) {
+        placed->size = sizeof(*placed);
+        placed->type = S2C_ATTACK;
+        placed->bombId = nextBombId;
+        placed->x = static_cast<unsigned char>(owner.col);
+        placed->y = static_cast<unsigned char>(owner.row);
+        placed->reach = static_cast<unsigned char>(owner.reach);
+    }
     ++nextBombId;
     board[owner.row][owner.col].obstacle = 9;
     return true;

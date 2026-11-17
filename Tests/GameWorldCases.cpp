@@ -108,5 +108,26 @@ int main()
     attack.size = 0;
     check("ATK-07", deadRejected && !world.PlaceBomb(attack, owner)
         && world.IsWalkable(0, 0));
+    struct TestRoom {
+        std::vector<S2C_Attack> sends;
+        int FindSlot(int id) const { return id == 42 ? 1 : -1; }
+        void Broadcast(const void* packet) {
+            sends.push_back(*static_cast<const S2C_Attack*>(packet));
+        }
+    } room;
+    world.InitBoard(MAP_CITY);
+    attack = {sizeof(C2S_Attack), C2S_ATTACK};
+    owner = {1, 0, 1, true, 3};
+    bool accepted = world.OnAttack(room, 42, attack, owner);
+    check("CAST-01", accepted && room.sends.size() == 1
+        && room.sends[0].size == sizeof(S2C_Attack) && room.sends[0].type == S2C_ATTACK
+        && room.sends[0].bombId == 0 && room.sends[0].ownerId == 42
+        && room.sends[0].x == 1 && room.sends[0].y == 0 && room.sends[0].reach == 3);
+    check("CAST-02", !world.OnAttack(room, 42, attack, owner) && room.sends.size() == 1);
+    owner.col = 2;
+    check("CAST-03", !world.OnAttack(room, 77, attack, owner) && world.IsWalkable(0, 2)
+        && room.sends.size() == 1);
+    check("CAST-04", world.OnAttack(room, 42, attack, owner) && room.sends.size() == 2
+        && room.sends.back().bombId == 1);
     return failed;
 }

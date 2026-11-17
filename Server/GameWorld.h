@@ -32,6 +32,18 @@ public:
         clock.Advance(elapsedMs, stepMovement, [this] { StepBomb(); });
     }
     bool PlaceBomb(const C2S_Attack& request, const BombOwner& owner);
+    /* 수정 - 2026-11-17 */
+    template<class Room>
+    bool OnAttack(Room& room, int sessionId, const C2S_Attack& request, const BombOwner& owner)
+    {
+        if (sessionId < 0 || room.FindSlot(sessionId) != owner.slot) return false;
+
+        S2C_Attack placed{};
+        if (!PlaceBomb(request, owner, &placed)) return false;
+        placed.ownerId = sessionId;
+        room.Broadcast(&placed);
+        return true;
+    }
     void StepBomb();
     void ResolveExplosion(ServerBomb& bomb);
     bool InitBoard(MAP_ID id);
@@ -42,6 +54,7 @@ public:
     }
 
 private:
+    bool PlaceBomb(const C2S_Attack& request, const BombOwner& owner, S2C_Attack* placed);
     int nextBombId = 0;
     FixedStepLoop clock;
     std::vector<ServerBomb> bombs;
