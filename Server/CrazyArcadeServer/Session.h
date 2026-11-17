@@ -53,6 +53,7 @@ private:
     void OnRoomList(const C2S_RoomList* p);       // 로비 방 목록 요청
     void OnJoinRoom(const C2S_JoinRoom* p);       // 로비에서 방 선택
     void OnLeaveRoom(const C2S_LeaveRoom* p);     // 방 → 로비
+    void OnSelectMap(const C2S_SelectMap* p);     // 방장만
     void OnStartGame(const C2S_StartGame* p);     // 방장만
 
     int           m_id = -1;

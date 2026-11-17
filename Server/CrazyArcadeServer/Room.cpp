@@ -121,6 +121,29 @@ void Room::SendRoomInfo()
     Broadcast(&info);
 }
 
+bool Room::SelectMap(int sessionId, int mapId)
+{
+    const char* reason = nullptr;
+    if (m_state != RS_WAITING)                         reason = "not waiting";
+    else if (!IsHost(sessionId))                       reason = "not host";
+    else if (mapId < MAP_FOREST || mapId > MAP_ICE)    reason = "invalid map";
+
+    if (reason) {
+        std::cout << "[room " << m_id << "] select map rejected (id " << sessionId << "): "
+                  << reason << std::endl;
+        return false;
+    }
+    if (mapId == m_mapId)
+        return true;
+
+    m_mapId = mapId;
+    // 바뀐 맵을 확인하고 다시 레디하도록 전원(방장 포함) 레디 해제
+    for (bool& ready : m_ready)
+        ready = false;
+    std::cout << "[room " << m_id << "] map -> " << mapId << " (ready cleared)" << std::endl;
+    return true;
+}
+
 void Room::SetReady(int slot, bool ready)
 {
     if (slot < 0 || slot >= MAX_ROOM_PLAYER || m_members[slot] == -1)

@@ -164,6 +164,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_LEAVE_ROOM:
         OnLeaveRoom(reinterpret_cast<C2S_LeaveRoom*>(packet));
         break;
+    case C2S_SELECT_MAP:
+        OnSelectMap(reinterpret_cast<C2S_SelectMap*>(packet));
+        break;
     case C2S_START_GAME:
         OnStartGame(reinterpret_cast<C2S_StartGame*>(packet));
         break;
@@ -334,6 +337,20 @@ void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
     m_slot   = -1;
     m_state  = ST_LOBBY;
     std::cout << "[" << m_id << "] left room " << roomId << " -> lobby" << std::endl;
+}
+
+// 방장의 맵 선택. 방장이 아니거나 잘못된 맵이면 Room::SelectMap이 거부하고 로그만 남긴다.
+// 바뀌면 방 안 전원에게 S2C_RoomInfo (맵 + 풀린 레디). 로비 방 목록 갱신은 11/18
+void SESSION::OnSelectMap(const C2S_SelectMap* p)
+{
+    if (m_state != ST_ROOM) {
+        std::cout << "[" << m_id << "] select map ignored: not in a room" << std::endl;
+        return;
+    }
+    Room& room = g_roomManager.Get(m_roomId);
+    int before = room.GetMapId();
+    if (room.SelectMap(m_id, p->mapId) && room.GetMapId() != before)
+        room.SendRoomInfo();
 }
 
 // 방장의 시작 요청. 방장이 아니거나 조건(2명 이상, 방장 포함 전원 레디)이 안 되면

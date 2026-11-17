@@ -29,6 +29,11 @@ public:
     void SendRoomInfo();
     void FillRoomInfo(S2C_RoomInfo& out) const;
 
+    // 방장만 (1 숲, 2 도시, 3 얼음), 바꾸면 전원 레디 해제.
+    // 대기 중이 아니거나 방장이 아니거나 맵 번호가 잘못되면 false (로그를 남김)
+    // 같은 맵을 다시 고르면 바뀐 것이 없으므로 true만 돌려주고 레디는 그대로 둔다
+    bool SelectMap(int sessionId, int mapId);
+
     // 레디 켜기/끄기만 한다. 게임을 시작하지는 않는다 (C2S_Ready 처리에서 호출 → SendRoomInfo)
     void SetReady(int slot, bool ready);
     bool IsReady(int slot) const { return m_ready[slot]; }
