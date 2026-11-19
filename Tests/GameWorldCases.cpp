@@ -129,5 +129,28 @@ int main()
         && room.sends.size() == 1);
     check("CAST-04", world.OnAttack(room, 42, attack, owner) && room.sends.size() == 2
         && room.sends.back().bombId == 1);
+
+    struct ExplosionRoom {
+        std::vector<S2C_Explode> sends;
+        void Broadcast(const void* packet) {
+            sends.push_back(*static_cast<const S2C_Explode*>(packet));
+        }
+    } explosionRoom;
+    world.InitBoard(MAP_FOREST);
+    owner = {0, 0, 0, true, 5};
+    world.PlaceBomb(attack, owner);
+    world.Advance(explosionRoom, 999, [] {});
+    check("EXPCAST-01", explosionRoom.sends.empty());
+    world.Advance(explosionRoom, 1, [] {});
+    check("EXPCAST-02", explosionRoom.sends.size() == 1
+        && explosionRoom.sends[0].size == sizeof(S2C_Explode)
+        && explosionRoom.sends[0].type == S2C_EXPLODE
+        && explosionRoom.sends[0].bombId == 0
+        && explosionRoom.sends[0].reachRight == 2
+        && explosionRoom.sends[0].reachDown == 0
+        && explosionRoom.sends[0].reachLeft == 0
+        && explosionRoom.sends[0].reachUp == 0);
+    world.Advance(explosionRoom, 500, [] {});
+    check("EXPCAST-03", explosionRoom.sends.size() == 1);
     return failed;
 }
