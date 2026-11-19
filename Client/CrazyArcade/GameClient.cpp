@@ -1,4 +1,5 @@
-#include "GameClient.h"
+﻿#include "GameClient.h"
+#include "SceneManager.h"
 #include "NetworkManager.h"
 #include "Input.h"
 #include "Gfx.h"
@@ -363,6 +364,11 @@ void GameClient::OnGameStart(const S2C_GameStart* p)
     }
     sMySlot = p->mySlot;
     sInGame = true;
+    switch (p->mapId) {
+    case MAP_CITY: SceneManager::ChangeScene(SceneType::City); break;
+    case MAP_ICE: SceneManager::ChangeScene(SceneType::Ice); break;
+    default: SceneManager::ChangeScene(SceneType::Forest); break;
+    }
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)
@@ -399,4 +405,16 @@ void GameClient::RenderEchoTest(HDC hdc)
         (NetworkManager::IsConnected() ? L" (연결됨)" : L" (연결 안 됨)"));
     Gfx::DrawSmallText(hdc, 10, 36, L"보냄 " + std::to_wstring(sEchoSent) +
         L" / 받음 " + std::to_wstring(sEchoReceived) + L"  마지막: " + sLastEcho);
+}
+
+void GameClient::OnMapInfo(const S2C_MapInfo* packet)
+{
+    if (!sInGame || packet->mapId != sGameStart.map) return;
+    SceneManager::OnMapInfo(*packet);
+}
+
+void GameClient::OnAttack(const S2C_Attack* packet)
+{
+    if (!sInGame) return;
+    SceneManager::OnAttack(*packet);
 }

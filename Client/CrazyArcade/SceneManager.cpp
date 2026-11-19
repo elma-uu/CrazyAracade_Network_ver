@@ -13,6 +13,7 @@ bool SceneManager::sHasPending = false;
 
 void SceneManager::ChangeScene(SceneType type)
 {
+    if (sHasPending && sPending == type) return;
     pendingMap.reset();
     sPending = type;
     sHasPending = true;

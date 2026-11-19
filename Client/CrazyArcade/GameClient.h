@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Common.h"
 #include "protocol.h"
 
@@ -121,6 +121,8 @@ public:
     static void OnRoomEnterResult(const S2C_RoomEnterResult* p);
     static void OnRoomInfo(const S2C_RoomInfo* p);
     static void OnPlayerLeave(const S2C_PlayerLeave* p);
+    static void OnMapInfo(const S2C_MapInfo* packet);
+    static void OnAttack(const S2C_Attack* packet);
     static void OnGameStart(const S2C_GameStart* p);
 
 private:
