@@ -147,8 +147,25 @@ void GameWorld::BuildMapInfo(S2C_MapInfo& out) const
 // 서버가 50ms마다 한 번 호출한다.
 void GameWorld::StepBomb()
 {
+    StepBomb({});
+}
+
+/* 수정 - 2026-11-19 */
+void GameWorld::StepBomb(const std::function<void(const S2C_Explode&)>& broadcast)
+{
     for (ServerBomb& bomb : bombs) {
-        if (bomb.Tick()) ResolveExplosion(bomb);
+        if (bomb.Tick()) {
+            ResolveExplosion(bomb);
+            S2C_Explode packet{};
+            packet.size = sizeof(packet);
+            packet.type = S2C_EXPLODE;
+            packet.bombId = bomb.id;
+            packet.reachLeft = static_cast<unsigned char>(bomb.reachL);
+            packet.reachRight = static_cast<unsigned char>(bomb.reachR);
+            packet.reachUp = static_cast<unsigned char>(bomb.reachU);
+            packet.reachDown = static_cast<unsigned char>(bomb.reachD);
+            if (broadcast) broadcast(packet);
+        }
     }
 
     bombs.erase(std::remove_if(bombs.begin(), bombs.end(),

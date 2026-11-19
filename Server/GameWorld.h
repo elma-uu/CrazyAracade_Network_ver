@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <functional>
 #include "ServerBomb.h"
 #include "FixedStepLoop.h"
 
@@ -44,7 +45,16 @@ public:
         room.Broadcast(&placed);
         return true;
     }
+    /* 수정 - 2026-11-19 */
+    template<class Room, class Move>
+    void Advance(Room& room, std::uint64_t elapsedMs, Move stepMovement)
+    {
+        clock.Advance(elapsedMs, stepMovement, [this, &room] {
+            StepBomb([&room](const S2C_Explode& packet) { room.Broadcast(&packet); });
+        });
+    }
     void StepBomb();
+    void StepBomb(const std::function<void(const S2C_Explode&)>& broadcast);
     void ResolveExplosion(ServerBomb& bomb);
     bool InitBoard(MAP_ID id);
     bool IsWalkable(int row, int col) const
