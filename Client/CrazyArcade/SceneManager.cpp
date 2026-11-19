@@ -83,3 +83,12 @@ void SceneManager::Release()
     sActive.reset();
     sHasPending = false;
 }
+
+/* 수정 - 2026-11-18 */
+bool SceneManager::OnAttack(const S2C_Attack& packet)
+{
+    // 예약된 스테이지 생성과 맵 적용을 끝낸 뒤 설치 정보를 적용한다.
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnAttack(packet);
+}

@@ -57,6 +57,7 @@ void StageScene::OnEnter()
 /* 수정 - 2026-11-11 */
 void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
 {
+    mNetworkBombs.clear();
     static_assert(TileMap::Size == MAP_TILES);
     for (int row = 0; row < MAP_TILES; ++row) {
         for (int col = 0; col < MAP_TILES; ++col) {
@@ -236,4 +237,18 @@ void StageScene::RenderResult(HDC hdc) const
         Gfx::Draw(hdc, BitmapID::GameEnd, bannerX[i], 400, 348, 65, 0, srcY, 348, 65);
     }
     Gfx::DrawOutlinedText(hdc, 500, 600, L"다시 시작하려면 R을 누르시오 .");
+}
+
+/* 수정 - 2026-11-18 */
+bool StageScene::OnAttack(const S2C_Attack& packet)
+{
+    if (packet.size != sizeof(packet) || packet.type != S2C_ATTACK
+        || packet.bombId < 0 || packet.ownerId < 0 || packet.reach == 0
+        || !TileMap::InBounds(packet.y, packet.x)) return false;
+    for (const auto& bomb : mNetworkBombs)
+        if (bomb.bombId == packet.bombId) return false;
+    mNetworkBombs.push_back(packet);
+    mMap.At(packet.y, packet.x).obstacle = Obstacle::Bomb;
+    Audio::PlayEffect("Ballon.wav");
+    return true;
 }

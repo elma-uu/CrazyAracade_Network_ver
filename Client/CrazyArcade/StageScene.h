@@ -15,6 +15,7 @@
 class StageScene : public Scene {
 public:
     StageScene();
+    bool OnAttack(const S2C_Attack& packet);
     void ApplyMapInfo(const S2C_MapInfo& packet);
 
     void OnEnter() override;
@@ -72,5 +73,6 @@ private:
     void RenderResult(HDC hdc) const;
 
     std::vector<std::unique_ptr<Bomb>> mBombs;
+    std::vector<S2C_Attack> mNetworkBombs;
     int mWinner = -1;
 };
