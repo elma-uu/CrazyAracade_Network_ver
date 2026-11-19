@@ -182,6 +182,15 @@ void StageScene::Render(HDC hdc)
     RenderCommonHud(hdc);
     RenderBackground(hdc);
     for (const auto& bomb : mBombs) bomb->Render(hdc);
+    /* 수정 - 2026-11-18 */
+    int frame = static_cast<int>((GetTickCount64() / 50) % 4);
+    for (const auto& bomb : mNetworkBombs) {
+        POINT center = TileMap::TileCenter(bomb.y, bomb.x);
+        Gfx::Draw(hdc, BitmapID::BombSet,
+            center.x - Config::TileHalf, center.y - Config::TileHalf,
+            Config::TileSize, Config::TileSize, frame * 56, 0, 54, 54);
+    }
+
     RenderMap(hdc);
     if (mOnline) {
         RenderOnlineNames(hdc);
