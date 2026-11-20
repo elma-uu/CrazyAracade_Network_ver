@@ -344,6 +344,9 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
     case S2C_MAP_INFO:
         GameClient::OnMapInfo(reinterpret_cast<S2C_MapInfo*>(packet));
         break;
+    case S2C_EXPLODE:
+        GameClient::OnExplode(reinterpret_cast<S2C_Explode*>(packet));
+        break;
     case S2C_ATTACK:
         GameClient::OnAttack(reinterpret_cast<S2C_Attack*>(packet));
         break;

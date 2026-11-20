@@ -69,8 +69,13 @@ void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
     }
 }
 
-void StageScene::Update(float)
+void StageScene::Update(float deltaTime)
 {
+    for (auto& bomb : mNetworkBombs)
+        if (bomb.exploding) bomb.remaining -= deltaTime;
+    mNetworkBombs.erase(std::remove_if(mNetworkBombs.begin(), mNetworkBombs.end(),
+        [](const NetworkBomb& bomb) { return bomb.exploding && bomb.remaining <= 0; }),
+        mNetworkBombs.end());
     if (Input::GetKeyDown(VK_F3)) Player::ToggleFootDebug();   // [디버그] 발밑 중심점 표시
 
     if (mOnline) {
@@ -256,8 +261,28 @@ bool StageScene::OnAttack(const S2C_Attack& packet)
         || !TileMap::InBounds(packet.y, packet.x)) return false;
     for (const auto& bomb : mNetworkBombs)
         if (bomb.bombId == packet.bombId) return false;
-    mNetworkBombs.push_back(packet);
+    mNetworkBombs.emplace_back(packet);
     mMap.At(packet.y, packet.x).obstacle = Obstacle::Bomb;
     Audio::PlayEffect("Ballon.wav");
     return true;
+}
+
+/* 수정 - 2026-11-20 */
+bool StageScene::OnExplode(const S2C_Explode& packet)
+{
+    if (packet.size != sizeof(packet) || packet.type != S2C_EXPLODE) return false;
+    for (auto& bomb : mNetworkBombs) {
+        if (bomb.bombId != packet.bombId) continue;
+        if (bomb.exploding || packet.reachLeft > bomb.x || packet.reachRight >= MAP_TILES - bomb.x
+            || packet.reachUp > bomb.y || packet.reachDown >= MAP_TILES - bomb.y) return false;
+        bomb.exploding = true;
+        bomb.up = packet.reachUp;
+        bomb.down = packet.reachDown;
+        bomb.left = packet.reachLeft;
+        bomb.right = packet.reachRight;
+        mMap.At(bomb.y, bomb.x).obstacle = Obstacle::Empty;
+        Audio::PlayEffect("Bubble.wav");
+        return true;
+    }
+    return false;
 }

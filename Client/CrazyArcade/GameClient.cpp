@@ -418,3 +418,8 @@ void GameClient::OnAttack(const S2C_Attack* packet)
     if (!sInGame) return;
     SceneManager::OnAttack(*packet);
 }
+
+void GameClient::OnExplode(const S2C_Explode* packet)
+{
+    if (sInGame) SceneManager::OnExplode(*packet);
+}
