@@ -191,9 +191,24 @@ void StageScene::Render(HDC hdc)
     int frame = static_cast<int>((GetTickCount64() / 50) % 4);
     for (const auto& bomb : mNetworkBombs) {
         POINT center = TileMap::TileCenter(bomb.y, bomb.x);
-        Gfx::Draw(hdc, BitmapID::BombSet,
-            center.x - Config::TileHalf, center.y - Config::TileHalf,
-            Config::TileSize, Config::TileSize, frame * 56, 0, 54, 54);
+        if (!bomb.exploding) {
+            Gfx::Draw(hdc, BitmapID::BombSet,
+                center.x - Config::TileHalf, center.y - Config::TileHalf,
+                Config::TileSize, Config::TileSize, frame * 56, 0, 54, 54);
+            continue;
+        }
+        // 11/20: 원본 Bomb::Render의 물줄기 이미지 규격을 사용한다.
+        int flameFrame = static_cast<int>(bomb.remaining * 1000 / 50) % 3;
+        auto drawFlame = [&](BitmapID image, int row, int col) {
+            POINT pos = TileMap::TileCenter(row, col);
+            Gfx::Draw(hdc, image, pos.x - Config::TileHalf, pos.y - Config::TileHalf,
+                Config::TileSize, Config::TileSize, flameFrame * 52, 0, 52, 52);
+        };
+        drawFlame(BitmapID::BombCenter, bomb.y, bomb.x);
+        for (int i = 1; i <= bomb.up; ++i) drawFlame(BitmapID::BombUp, bomb.y - i, bomb.x);
+        for (int i = 1; i <= bomb.down; ++i) drawFlame(BitmapID::BombDown, bomb.y + i, bomb.x);
+        for (int i = 1; i <= bomb.left; ++i) drawFlame(BitmapID::BombLeft, bomb.y, bomb.x - i);
+        for (int i = 1; i <= bomb.right; ++i) drawFlame(BitmapID::BombRight, bomb.y, bomb.x + i);
     }
 
     RenderMap(hdc);
