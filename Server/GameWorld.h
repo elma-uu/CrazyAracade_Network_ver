@@ -50,12 +50,15 @@ public:
     void Advance(Room& room, std::uint64_t elapsedMs, Move stepMovement)
     {
         clock.Advance(elapsedMs, stepMovement, [this, &room] {
-            StepBomb([&room](const S2C_Explode& packet) { room.Broadcast(&packet); });
+            StepBomb([&room](const S2C_Explode& packet) { room.Broadcast(&packet); },
+                [&room](const S2C_BlockBreak& packet) { room.Broadcast(&packet); });
         });
     }
     void StepBomb();
-    void StepBomb(const std::function<void(const S2C_Explode&)>& broadcast);
-    void ResolveExplosion(ServerBomb& bomb);
+    void StepBomb(const std::function<void(const S2C_Explode&)>& broadcast,
+        const std::function<void(const S2C_BlockBreak&)>& blockBreak = {});
+    void ResolveExplosion(ServerBomb& bomb,
+        const std::function<void(const S2C_BlockBreak&)>& blockBreak = {});
     bool InitBoard(MAP_ID id);
     bool IsWalkable(int row, int col) const
     {

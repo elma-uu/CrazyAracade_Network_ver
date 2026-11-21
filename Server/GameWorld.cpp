@@ -151,11 +151,12 @@ void GameWorld::StepBomb()
 }
 
 /* 수정 - 2026-11-19 */
-void GameWorld::StepBomb(const std::function<void(const S2C_Explode&)>& broadcast)
+void GameWorld::StepBomb(const std::function<void(const S2C_Explode&)>& broadcast,
+    const std::function<void(const S2C_BlockBreak&)>& blockBreak)
 {
     for (ServerBomb& bomb : bombs) {
         if (bomb.Tick()) {
-            ResolveExplosion(bomb);
+            ResolveExplosion(bomb, blockBreak);
             S2C_Explode packet{};
             packet.size = sizeof(packet);
             packet.type = S2C_EXPLODE;
@@ -174,7 +175,8 @@ void GameWorld::StepBomb(const std::function<void(const S2C_Explode&)>& broadcas
 }
 
 /* 수정 - 2026-11-13 */
-void GameWorld::ResolveExplosion(ServerBomb& bomb)
+void GameWorld::ResolveExplosion(ServerBomb& bomb,
+    const std::function<void(const S2C_BlockBreak&)>& blockBreak)
 {
     constexpr int empty = 0, box = 1, balloon = 9;
     board[bomb.row][bomb.col].obstacle = empty;
@@ -190,6 +192,13 @@ void GameWorld::ResolveExplosion(ServerBomb& bomb)
             if (tile.obstacle == box) {
                 tile.obstacle = empty; // 상자 안의 아이템은 해당 칸에 남는다.
                 tile.variant = 0;
+                S2C_BlockBreak packet{};
+                packet.size = sizeof(packet);
+                packet.type = S2C_BLOCK_BREAK;
+                packet.x = static_cast<unsigned char>(col);
+                packet.y = static_cast<unsigned char>(row);
+                packet.item = static_cast<ITEM_TYPE>(tile.hiddenItem);
+                if (blockBreak) blockBreak(packet);
                 distance = step;
                 break;
             }
