@@ -301,3 +301,15 @@ bool StageScene::OnExplode(const S2C_Explode& packet)
     }
     return false;
 }
+
+/* 11/21 */
+bool StageScene::OnBlockBreak(const S2C_BlockBreak& packet)
+{
+    if (packet.size != sizeof(packet) || packet.type != S2C_BLOCK_BREAK
+        || !TileMap::InBounds(packet.y, packet.x) || packet.item > ITEM_CLOCK) return false;
+    Tile& tile = mMap.At(packet.y, packet.x);
+    tile.obstacle = Obstacle::Empty;
+    tile.variant = 0;
+    tile.item = static_cast<ItemType>(packet.item);
+    return true;
+}

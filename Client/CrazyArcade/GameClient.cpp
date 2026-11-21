@@ -423,3 +423,8 @@ void GameClient::OnExplode(const S2C_Explode* packet)
 {
     if (sInGame) SceneManager::OnExplode(*packet);
 }
+
+void GameClient::OnBlockBreak(const S2C_BlockBreak* packet)
+{
+    if (sInGame) SceneManager::OnBlockBreak(*packet);
+}

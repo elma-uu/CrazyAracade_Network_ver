@@ -100,3 +100,10 @@ bool SceneManager::OnExplode(const S2C_Explode& packet)
     auto* stage = dynamic_cast<StageScene*>(sActive.get());
     return stage && stage->OnExplode(packet);
 }
+
+bool SceneManager::OnBlockBreak(const S2C_BlockBreak& packet)
+{
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnBlockBreak(packet);
+}

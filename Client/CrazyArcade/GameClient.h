@@ -122,6 +122,7 @@ public:
     static void OnRoomInfo(const S2C_RoomInfo* p);
     static void OnPlayerLeave(const S2C_PlayerLeave* p);
     static void OnMapInfo(const S2C_MapInfo* packet);
+    static void OnBlockBreak(const S2C_BlockBreak* packet);
     static void OnExplode(const S2C_Explode* packet);
     static void OnAttack(const S2C_Attack* packet);
     static void OnGameStart(const S2C_GameStart* p);
