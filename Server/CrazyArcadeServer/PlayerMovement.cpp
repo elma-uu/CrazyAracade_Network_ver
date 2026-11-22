@@ -46,7 +46,24 @@ static float Approach(float cur, float target, float step)
     return cur;
 }
 
-void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk)
+// 11/20 S2C_Move 만들기
+void PlayerMovement::MakeMovePacket(int slot, S2C_Move& out) const
+{
+    const ServerPlayer& p = m_players[slot];
+    out = S2C_Move();
+    out.size = sizeof(out);
+    out.type = S2C_MOVE;
+    out.id = p.sessionId;
+    out.x = (unsigned char)p.x;
+    out.y = (unsigned char)p.y;
+    out.destX = (unsigned char)p.destX;
+    out.destY = (unsigned char)p.destY;
+    out.dir = p.dir;
+    out.speed = p.speed;
+}
+
+void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk,
+                          const std::function<void(const S2C_Move&)>& onMove)
 {
     for (int i = 0; i < MAX_ROOM_PLAYER; i++) {
         ServerPlayer& p = m_players[i];
@@ -57,6 +74,8 @@ void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk)
         // 멈춰 있을 때만 다음 칸을 정한다 (원본 HandlePlayerMovement와 같음)
         if (!moving) {
             if (p.inputDir == IN_NONE) continue;
+
+            bool turned = (p.dir != p.inputDir);
             p.dir = p.inputDir;
 
             int nx = p.x, ny = p.y;
@@ -65,10 +84,24 @@ void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk)
             else if (p.inputDir == IN_LEFT) nx--;
             else if (p.inputDir == IN_RIGHT) nx++;
 
-            if (!canWalk(ny, nx)) continue;   // 막힌 칸 → 방향만 바뀜
+            if (!canWalk(ny, nx)) {
+                // 막힌 칸 → 방향만 바뀜. 다른 사람 화면에서도 돌아보게 한 번만 알려 준다 (dest = 지금 칸)
+                if (turned) {
+                    S2C_Move m;
+                    MakeMovePacket(i, m);
+                    onMove(m);
+                }
+                continue;
+            }
 
             p.destX = nx;
             p.destY = ny;
+
+            // 새 칸으로 출발할 때만 보낸다 (12ms마다 좌표를 보내지 않음)
+            // 클라는 x,y → destX,destY를 speed로 알아서 보간한다
+            S2C_Move m;
+            MakeMovePacket(i, m);
+            onMove(m);
         }
 
         // 목적 칸으로 다가가기

@@ -253,7 +253,8 @@ void Room::SendGameStart()
 void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
 {
     if (m_state != RS_PLAYING) return;
-    m_move.Step(canWalk);
+    // 출발할 때마다 방 안 전원에게 S2C_Move (11/20)
+    m_move.Step(canWalk, [this](const S2C_Move& m) { Broadcast(&m); });
 }
 
 void Room::FillRoomInfo(S2C_RoomInfo& out) const

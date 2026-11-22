@@ -31,10 +31,14 @@ public:
 
     // 12ms마다 한 번 부른다
     // canWalk(row, col) : 그 칸으로 갈 수 있는지 (GameWorld::IsWalkable)
-    void Step(const std::function<bool(int, int)>& canWalk);
+    // onMove : 새 칸으로 출발할 때(또는 막혀서 방향만 바뀔 때) S2C_Move를 넘겨 준다 (11/20)
+    void Step(const std::function<bool(int, int)>& canWalk,
+              const std::function<void(const S2C_Move&)>& onMove);
 
     const ServerPlayer& Get(int slot) const { return m_players[slot]; }
 
 private:
+    void MakeMovePacket(int slot, S2C_Move& out) const;
+
     ServerPlayer m_players[MAX_ROOM_PLAYER];
 };
