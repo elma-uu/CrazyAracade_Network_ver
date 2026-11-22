@@ -353,6 +353,9 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
     case S2C_GAME_START:
         GameClient::OnGameStart(reinterpret_cast<S2C_GameStart*>(packet));
         break;
+    case S2C_MOVE:
+        GameClient::OnMove(reinterpret_cast<S2C_Move*>(packet));
+        break;
     case S2C_PLAYER_LEAVE:
         GameClient::OnPlayerLeave(reinterpret_cast<S2C_PlayerLeave*>(packet));
         break;

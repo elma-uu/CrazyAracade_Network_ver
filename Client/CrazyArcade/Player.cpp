@@ -3,6 +3,7 @@
 #include "Input.h"
 #include "Gfx.h"
 #include "GameData.h"
+#include "../../Common/protocol.h"
 
 namespace {
     const double kColorHueTable[GameData::ColorCount] = { 0, 30, 60, 120, 150, 210, 270 };
@@ -48,6 +49,8 @@ void Player::Spawn(int col, int row)
 {
     mPx = static_cast<float>(col);
     mPy = static_cast<float>(row);
+    mNetDestX = mPx;
+    mNetDestY = mPy;
     mFacing = Dir::Down;
     mAnimFrame = 0;
     mSpeed = 1.0f;
@@ -173,6 +176,42 @@ void Player::Slide(bool horizontal, int ahead, float& side, float distance)
     if (!IsAreaOpen(horizontal, ahead, ahead, footSide, footSide)) return;
 
     side = MoveToward(side, static_cast<float>(footSide), distance * kSlideSpeed);
+}
+
+// 11/21 서버가 새 칸으로 출발했다고 알려 줌
+void Player::SetNetMove(int x, int y, int destX, int destY, int dir, float speed)
+{
+    // 출발 칸으로 맞춰 놓고 시작 (보간하다 조금 어긋났어도 여기서 서버 위치로 돌아온다)
+    mPx = (float)x;
+    mPy = (float)y;
+    mNetDestX = (float)destX;
+    mNetDestY = (float)destY;
+    mSpeed = speed;
+
+    if (dir == IN_UP) mFacing = Dir::Up;
+    else if (dir == IN_DOWN) mFacing = Dir::Down;
+    else if (dir == IN_LEFT) mFacing = Dir::Left;
+    else if (dir == IN_RIGHT) mFacing = Dir::Right;
+}
+
+// 매 프레임: 목적 칸으로 서버와 같은 빠르기로 다가간다
+// 서버는 12ms마다 speed/8 칸 → 1초에 speed * 1000 / 96 칸
+void Player::UpdateNetMove(float deltaTime)
+{
+    if (mHitTimerMs > 0) mHitTimerMs -= (int)(deltaTime * 1000);
+
+    if (mPx == mNetDestX && mPy == mNetDestY) return;   // 도착해서 멈춤
+
+    float step = mSpeed * (1000.0f / 96.0f) * deltaTime;
+    mPx = MoveToward(mPx, mNetDestX, step);
+    mPy = MoveToward(mPy, mNetDestY, step);
+
+    // 걷기 그림: 로컬 이동처럼 12ms에 한 칸씩 넘김
+    mNetAnimMs += deltaTime * 1000;
+    while (mNetAnimMs >= Config::FixedStepMs) {
+        mNetAnimMs -= Config::FixedStepMs;
+        mAnimFrame = (mAnimFrame + 1) % 16;
+    }
 }
 
 void Player::Render(HDC hdc) const

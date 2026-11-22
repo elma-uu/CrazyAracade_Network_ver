@@ -68,7 +68,7 @@ void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
     }
 }
 
-void StageScene::Update(float)
+void StageScene::Update(float deltaTime)
 {
     if (Input::GetKeyDown(VK_F3)) Player::ToggleFootDebug();   // [디버그] 발밑 중심점 표시
 
@@ -79,6 +79,15 @@ void StageScene::Update(float)
             return;
         }
         UpdateOnlineInput();
+
+        // 11/21 서버가 보낸 이동(S2C_Move) 반영 → 목적 칸까지 보간. 나와 다른 사람 모두 같은 방식
+        for (int i = 0; i < MaxPlayers; ++i) {
+            if (!mPlayers[i]) continue;
+            GameClient::MoveView m;
+            if (GameClient::TakeMove(i, m))
+                mPlayers[i]->SetNetMove(m.x, m.y, m.destX, m.destY, m.dir, m.speed);
+            mPlayers[i]->UpdateNetMove(deltaTime);
+        }
         return;
     }
     if (IsGameOver()) {

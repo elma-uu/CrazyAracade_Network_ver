@@ -123,6 +123,17 @@ public:
     static void OnPlayerLeave(const S2C_PlayerLeave* p);
     static void OnGameStart(const S2C_GameStart* p);
 
+    // ---- 11/21 이동 (S2C_Move) ----
+    struct MoveView {
+        int   x = 0, y = 0;           // 출발 칸
+        int   destX = 0, destY = 0;   // 목적 칸
+        int   dir = IN_DOWN;          // INPUT_DIR
+        float speed = 1.0f;
+    };
+    static void OnMove(const S2C_Move* p);
+    // 그 자리에 새로 온 이동이 있으면 true + out (한 번 꺼내면 지워짐). StageScene이 매 프레임 꺼내 간다
+    static bool TakeMove(int slot, MoveView& out);
+
 private:
     static void BuildPreviewRoom(int roomId);
     static void UpdateEchoTest();
@@ -148,6 +159,9 @@ private:
 
     static bool sInGame;
     static GameStartInfo sGameStart;
+
+    static MoveView sMoves[MAX_ROOM_PLAYER];
+    static bool sHasMove[MAX_ROOM_PLAYER];
 
     static std::vector<ChatLine> sLobbyChat;
     static std::vector<ChatLine> sRoomChat;

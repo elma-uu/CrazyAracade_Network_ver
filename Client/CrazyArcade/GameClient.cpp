@@ -20,6 +20,8 @@ GameClient::RoomState GameClient::sRoom;
 int GameClient::sMySlot = -1;
 bool GameClient::sInGame = false;
 GameClient::GameStartInfo GameClient::sGameStart;
+GameClient::MoveView GameClient::sMoves[MAX_ROOM_PLAYER];
+bool GameClient::sHasMove[MAX_ROOM_PLAYER] = {};
 std::vector<GameClient::ChatLine> GameClient::sLobbyChat;
 std::vector<GameClient::ChatLine> GameClient::sRoomChat;
 std::wstring GameClient::sNotice;
@@ -363,6 +365,36 @@ void GameClient::OnGameStart(const S2C_GameStart* p)
     }
     sMySlot = p->mySlot;
     sInGame = true;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) sHasMove[i] = false;   // 지난 판 이동이 남지 않게
+}
+
+// 11/21 서버가 보낸 이동: 누구(id)인지 자리로 바꿔서 저장해 두면 StageScene이 꺼내 간다
+void GameClient::OnMove(const S2C_Move* p)
+{
+    if (!sInGame) return;
+    if (p->x >= MAP_TILES || p->y >= MAP_TILES || p->destX >= MAP_TILES || p->destY >= MAP_TILES) return;
+
+    int slot = -1;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+        if (sGameStart.players[i].exist && sGameStart.players[i].id == p->id) slot = i;
+    if (slot == -1) return;   // 모르는 사람
+
+    MoveView& m = sMoves[slot];
+    m.x = p->x;
+    m.y = p->y;
+    m.destX = p->destX;
+    m.destY = p->destY;
+    m.dir = p->dir;
+    m.speed = p->speed;
+    sHasMove[slot] = true;   // 한 프레임에 여러 개 오면 마지막 것만 쓰면 된다 (출발 칸을 같이 보내므로)
+}
+
+bool GameClient::TakeMove(int slot, MoveView& out)
+{
+    if (slot < 0 || slot >= MAX_ROOM_PLAYER || !sHasMove[slot]) return false;
+    out = sMoves[slot];
+    sHasMove[slot] = false;
+    return true;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)
