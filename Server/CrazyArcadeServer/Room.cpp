@@ -222,6 +222,7 @@ void Room::SendGameStart()
     p.type  = S2C_GAME_START;
     p.mapId = static_cast<MAP_ID>(m_mapId);
 
+    m_move.Clear();
     for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
         START_PLAYER& sp = p.players[i];
         if (m_members[i] == -1) {   // 빈 자리
@@ -230,6 +231,7 @@ void Room::SendGameStart()
         }
         int x = 0, y = 0;
         GetStartTile(i, x, y);
+        m_move.Spawn(i, m_members[i], x, y);   // 서버 이동도 같은 칸에서 시작 (11/18)
         sp.id    = m_members[i];
         sp.x     = static_cast<unsigned char>(x);
         sp.y     = static_cast<unsigned char>(y);
@@ -246,6 +248,12 @@ void Room::SendGameStart()
     }
     std::cout << "[room " << m_id << "] S2C_GameStart sent (map " << m_mapId << ", "
               << GetPlayerCount() << " players)" << std::endl;
+}
+
+void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
+{
+    if (m_state != RS_PLAYING) return;
+    m_move.Step(canWalk);
 }
 
 void Room::FillRoomInfo(S2C_RoomInfo& out) const

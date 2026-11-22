@@ -1,6 +1,8 @@
 #pragma once
 #include <array>
+#include <functional>
 #include "protocol.h"
+#include "PlayerMovement.h"
 
 enum ROOM_STATE { RS_EMPTY, RS_WAITING, RS_PLAYING };
 
@@ -54,6 +56,13 @@ public:
     // Room::StartGame(GameWorld::Init 뒤, S2C_MapInfo 앞)에서 부른다
     void SendGameStart();
 
+    // 11/18 이동 (동연). 게임 중 12ms마다 한 번 부른다.
+    // Room::Update(GameWorld 연결, 형민·규동)에서 GameWorld::Advance의 stepMovement로
+    //   StepMovement([&](int row, int col) { return m_world.IsWalkable(row, col); });
+    // 처럼 부르면 된다
+    void StepMovement(const std::function<bool(int, int)>& canWalk);
+    PlayerMovement& Movement() { return m_move; }
+
     // 대기 중 && 방장 && CanStart() 일 때만 true. 안 되면 이유를 로그로 남기고 false
     // (조건을 통과하면 11/17부터 StartGame()으로 게임을 시작한다)
     bool RequestStart(int sessionId);
@@ -77,6 +86,8 @@ private:
     // 들어온 순서 (방장 위임 기준). 자리 번호는 재사용되므로 순서를 따로 센다.
     unsigned int m_enterOrder[MAX_ROOM_PLAYER]{};
     unsigned int m_nextOrder = 0;
+
+    PlayerMovement m_move;   // 게임 중 플레이어 위치 (11/18)
 };
 
 // 방 1~8번 고정, 항상 로비에 표시
