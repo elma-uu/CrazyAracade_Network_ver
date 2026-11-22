@@ -308,6 +308,15 @@ void NetworkManager::SendStartGame()
     SendPacket(&p);
 }
 
+void NetworkManager::SendInput(INPUT_DIR dir)
+{
+    C2S_Input p = {};
+    p.size = sizeof(p);
+    p.type = C2S_INPUT;
+    p.dir = dir;
+    SendPacket(&p);
+}
+
 bool NetworkManager::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);

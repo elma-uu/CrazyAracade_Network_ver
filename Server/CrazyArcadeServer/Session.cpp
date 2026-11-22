@@ -176,6 +176,9 @@ bool SESSION::ProcessPacket(unsigned char* packet)
     case C2S_START_GAME:
         OnStartGame(reinterpret_cast<C2S_StartGame*>(packet));
         break;
+    case C2S_INPUT:
+        OnInput(reinterpret_cast<C2S_Input*>(packet));
+        break;
     default:
         // 아직 처리하지 않는 패킷 → 로그만 남기고 무시
         std::cout << "[" << m_id << "] unhandled packet type=" << static_cast<int>(header->type)
@@ -416,6 +419,17 @@ void SESSION::OnStartGame(const C2S_StartGame*)
         return;
     }
     g_roomManager.Get(m_roomId).RequestStart(m_id);
+}
+
+// 11/19 게임 중 방향키. 키를 누르거나 뗄 때만 온다.
+// 실제로 움직이는 건 12ms마다 Room::StepMovement에서
+void SESSION::OnInput(const C2S_Input* p)
+{
+    if (m_state != ST_INGAME) {
+        std::cout << "[" << m_id << "] input ignored: not in game" << std::endl;
+        return;
+    }
+    g_roomManager.Get(m_roomId).Movement().SetInput(m_slot, p->dir);
 }
 
 void SESSION::SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason)

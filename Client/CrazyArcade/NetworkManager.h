@@ -40,6 +40,8 @@ public:
     static void SendSelectColor(int color);
     static void SendReady(bool ready);
     static void SendStartGame();
+    // 게임 중 방향키 (누르거나 뗄 때만 보낸다, 11/19)
+    static void SendInput(INPUT_DIR dir);
 
 private:
     static bool DoRecv();

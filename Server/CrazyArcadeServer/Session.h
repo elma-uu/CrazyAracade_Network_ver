@@ -60,6 +60,7 @@ private:
     void OnSelectColor(const C2S_SelectColor* p);
     void OnReady(const C2S_Ready* p);             // 레디 토글
     void OnStartGame(const C2S_StartGame* p);     // 방장만
+    void OnInput(const C2S_Input* p);             // 게임 중 방향키 (11/19)
 
     int           m_id = -1;
     SOCKET        m_socket = INVALID_SOCKET;

@@ -26,6 +26,9 @@ public:
     // 게임 시작할 때 자리마다 한 번 (시작 칸은 Room::GetStartTile)
     void Spawn(int slot, int sessionId, int x, int y);
 
+    // 11/19 C2S_Input: 클라가 누르고 있는 방향 (IN_NONE = 뗌)
+    void SetInput(int slot, unsigned char dir);
+
     // 12ms마다 한 번 부른다
     // canWalk(row, col) : 그 칸으로 갈 수 있는지 (GameWorld::IsWalkable)
     void Step(const std::function<bool(int, int)>& canWalk);

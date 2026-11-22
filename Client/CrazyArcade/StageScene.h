@@ -64,6 +64,11 @@ protected:
 private:
     bool mOnline = false;
 
+    // 온라인 이동 입력 (11/19)
+    void UpdateOnlineInput();
+    int mInputOrder[4] = { 0, 1, 2, 3 };   // 최근에 누른 방향 순서 (0 위, 1 아래, 2 왼쪽, 3 오른쪽)
+    INPUT_DIR mSentDir = IN_NONE;          // 마지막으로 서버에 보낸 방향
+
     void PlaceBomb(Player& player);
     void UpdateBombs();
     void PickUpItem(Player& player);

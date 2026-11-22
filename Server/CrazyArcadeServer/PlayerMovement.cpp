@@ -23,6 +23,15 @@ void PlayerMovement::Spawn(int slot, int sessionId, int x, int y)
     p.alive = true;
 }
 
+void PlayerMovement::SetInput(int slot, unsigned char dir)
+{
+    if (slot < 0 || slot >= MAX_ROOM_PLAYER) return;
+    if (dir > IN_RIGHT) return;   // 이상한 값은 무시
+    if (m_players[slot].sessionId == -1) return;
+
+    m_players[slot].inputDir = dir;
+}
+
 // target 쪽으로 step만큼 (넘어가지 않게)
 static float Approach(float cur, float target, float step)
 {

@@ -74,7 +74,11 @@ void StageScene::Update(float)
 
     if (mOnline) {
         // 서버와 끊기면 로그인 화면으로 (끊김 안내는 GameClient가 띄운다)
-        if (!NetworkManager::IsConnected()) SceneManager::ChangeScene(SceneType::Login);
+        if (!NetworkManager::IsConnected()) {
+            SceneManager::ChangeScene(SceneType::Login);
+            return;
+        }
+        UpdateOnlineInput();
         return;
     }
     if (IsGameOver()) {
@@ -86,6 +90,40 @@ void StageScene::Update(float)
         if (!player) continue;
         player->HandleInput();
         if (player->WantsToPlaceBomb() && CanPlaceBomb(*player)) PlaceBomb(*player);
+    }
+}
+
+// 11/19 온라인 이동 입력: 방향키·WASD 둘 다 받고, 여러 개 누르면 마지막에 누른 방향.
+// 방향이 바뀔 때만 C2S_Input을 보낸다 (계속 보내지 않음)
+void StageScene::UpdateOnlineInput()
+{
+    // 키 번호: 위, 아래, 왼쪽, 오른쪽 순서 (INPUT_DIR 1~4와 같은 순서)
+    static const int keys1[4] = { VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT };
+    static const int keys2[4] = { 'W', 'S', 'A', 'D' };
+
+    // 이번 프레임에 새로 누른 방향을 맨 앞으로
+    for (int d = 0; d < 4; d++) {
+        if (Input::GetKeyDown(keys1[d]) || Input::GetKeyDown(keys2[d])) {
+            int pos = 0;
+            for (int k = 0; k < 4; k++) if (mInputOrder[k] == d) pos = k;
+            for (int k = pos; k > 0; k--) mInputOrder[k] = mInputOrder[k - 1];
+            mInputOrder[0] = d;
+        }
+    }
+
+    // 누르고 있는 것 중 가장 최근 것
+    INPUT_DIR dir = IN_NONE;
+    for (int k = 0; k < 4; k++) {
+        int d = mInputOrder[k];
+        if (Input::GetKey(keys1[d]) || Input::GetKey(keys2[d])) {
+            dir = (INPUT_DIR)(IN_UP + d);
+            break;
+        }
+    }
+
+    if (dir != mSentDir) {
+        NetworkManager::SendInput(dir);
+        mSentDir = dir;
     }
 }
 
