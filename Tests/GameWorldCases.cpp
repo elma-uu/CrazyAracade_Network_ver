@@ -132,8 +132,13 @@ int main()
 
     struct ExplosionRoom {
         std::vector<S2C_Explode> sends;
+        std::vector<S2C_BlockBreak> blocks;
         void Broadcast(const void* packet) {
-            sends.push_back(*static_cast<const S2C_Explode*>(packet));
+            auto header = static_cast<const PACKET_HEADER*>(packet);
+            if (header->type == S2C_EXPLODE)
+                sends.push_back(*static_cast<const S2C_Explode*>(packet));
+            if (header->type == S2C_BLOCK_BREAK)
+                blocks.push_back(*static_cast<const S2C_BlockBreak*>(packet));
         }
     } explosionRoom;
     world.InitBoard(MAP_FOREST);
@@ -152,5 +157,8 @@ int main()
         && explosionRoom.sends[0].reachUp == 0);
     world.Advance(explosionRoom, 500, [] {});
     check("EXPCAST-03", explosionRoom.sends.size() == 1);
+    check("BLOCK-01", explosionRoom.blocks.size() == 1
+        && explosionRoom.blocks[0].x == 2 && explosionRoom.blocks[0].y == 0
+        && explosionRoom.blocks[0].type == S2C_BLOCK_BREAK);
     return failed;
 }
