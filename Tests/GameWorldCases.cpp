@@ -1,6 +1,7 @@
 #include "../Server/GameWorld.h"
 #include <cstdio>
 #include <string>
+#include <cstdlib>
 #include <initializer_list>
 
 int main()
@@ -160,5 +161,62 @@ int main()
     check("BLOCK-01", explosionRoom.blocks.size() == 1
         && explosionRoom.blocks[0].x == 2 && explosionRoom.blocks[0].y == 0
         && explosionRoom.blocks[0].type == S2C_BLOCK_BREAK);
+
+    struct ItemRoom {
+        std::vector<S2C_ItemGet> firstClient, secondClient;
+        int FindSlot(int id) const { return id == 42 ? 0 : -1; }
+        void Broadcast(const void* packet) {
+            firstClient.push_back(*static_cast<const S2C_ItemGet*>(packet));
+            secondClient.push_back(*static_cast<const S2C_ItemGet*>(packet));
+        }
+    } itemRoom;
+    std::srand(23);
+    world.InitBoard(MAP_FOREST);
+    std::vector<S2C_BlockBreak> drops;
+    for (int row = 0; row < 20; ++row) {
+        for (int col = 0; col < 20; ++col) {
+            ServerBomb sweep{0, 0, row, col, 1};
+            world.ResolveExplosion(sweep, [&](const S2C_BlockBreak& packet) {
+                if (packet.item != ITEM_NONE) drops.push_back(packet);
+            });
+        }
+    }
+    ItemOwner collector{};
+    collector.slot = 0;
+    collector.alive = true;
+    bool effects = !drops.empty(), noRepeat = true;
+    bool seenPower = false, seenBomb = false, seenSpeed = false;
+    for (const auto& drop : drops) {
+        collector.row = drop.y;
+        collector.col = drop.x;
+        collector.speed = 1.5f;
+        int oldReach = collector.reach, oldLimit = collector.maxBombs;
+        bool picked = world.PickUpItem(itemRoom, 42, collector);
+        effects = effects && picked;
+        if (drop.item == ITEM_POWER) {
+            seenPower = true;
+            effects = effects && collector.reach == oldReach + 1;
+        }
+        if (drop.item == ITEM_BOMB) {
+            seenBomb = true;
+            effects = effects && collector.maxBombs == oldLimit + 1;
+        }
+        if (drop.item == ITEM_SPEED) {
+            seenSpeed = true;
+            effects = effects && collector.speed == 1.5f;
+        }
+        noRepeat = noRepeat && !world.PickUpItem(itemRoom, 42, collector);
+    }
+    check("ITEM-01", effects && seenPower && seenBomb && seenSpeed);
+    check("ITEM-02", noRepeat && itemRoom.firstClient.size() == drops.size());
+    bool same = itemRoom.firstClient.size() == itemRoom.secondClient.size();
+    for (size_t i = 0; i < itemRoom.firstClient.size(); ++i) {
+        const auto& a = itemRoom.firstClient[i];
+        const auto& b = itemRoom.secondClient[i];
+        same = same && a.id == 42 && a.type == S2C_ITEM_GET && a.size == sizeof(a)
+            && a.x == b.x && a.y == b.y && a.item == b.item && a.speed == b.speed;
+    }
+    check("ITEM-03", same && !itemRoom.firstClient.empty());
+    check("ITEM-04", !world.PickUpItem(itemRoom, 99, collector));
     return failed;
 }
