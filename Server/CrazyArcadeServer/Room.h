@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include "protocol.h"
+#include "GameWorld.h"   // Server/GameWorld.h (민규동)
 
 enum ROOM_STATE { RS_EMPTY, RS_WAITING, RS_PLAYING };
 
@@ -54,9 +55,16 @@ public:
     // Room::StartGame(GameWorld::Init 뒤, S2C_MapInfo 앞)에서 부른다
     void SendGameStart();
 
-    // 대기 중 && 방장 && CanStart() 일 때만 true. 안 되면 이유를 로그로 남기고 false
-    // (조건을 통과하면 11/17부터 StartGame()으로 게임을 시작한다)
+    // 대기 중 && 방장 && CanStart() 일 때만 StartGame() 후 true.
+    // 안 되면 이유를 로그로 남기고 false
     bool RequestStart(int sessionId);
+
+    // 게임 시작: GameWorld 판 준비 → RS_PLAYING → S2C_GameStart(전원 ST_INGAME) → S2C_MapInfo
+    // 판 준비에 실패하면(맵 번호 오류) 시작하지 않고 false
+    bool StartGame();
+
+    // OnInput·OnAttack 등 인게임 처리에서 사용
+    GameWorld& World() { return m_world; }
 
     int        GetId() const              { return m_id; }
     ROOM_STATE GetState() const           { return m_state; }
@@ -77,6 +85,9 @@ private:
     // 들어온 순서 (방장 위임 기준). 자리 번호는 재사용되므로 순서를 따로 센다.
     unsigned int m_enterOrder[MAX_ROOM_PLAYER]{};
     unsigned int m_nextOrder = 0;
+
+    // 이 방에서 진행 중인 게임 (판·물풍선·고정 스텝)
+    GameWorld m_world;
 };
 
 // 방 1~8번 고정, 항상 로비에 표시

@@ -199,9 +199,31 @@ bool Room::RequestStart(int sessionId)
         return false;
     }
 
-    // 게임 시작(StartGame → GameWorld::Init, S2C_GameStart, S2C_MapInfo)은 11/17
     std::cout << "[room " << m_id << "] start approved by host " << sessionId
               << " (" << GetPlayerCount() << " players)" << std::endl;
+    return StartGame();
+}
+
+// 순서 (계획서 3.5 / 2.5 순서도 ②):
+// 1) GameWorld 판 준비 (원본 init_board_*, 네 모서리와 옆 칸은 비워 둠)
+// 2) RS_PLAYING — 이때부터 이 방에는 입장 불가(ENTER_PLAYING), 로비 목록에도 "게임 중"
+// 3) S2C_GameStart: 받는 사람마다 mySlot이 다르고, 받은 세션은 ST_INGAME (SendGameStart, 김동연)
+// 4) S2C_MapInfo: 장애물·종류만 보내고 아이템 위치는 숨김 (BuildMapInfo, 민규동)
+bool Room::StartGame()
+{
+    if (!m_world.InitBoard(static_cast<MAP_ID>(m_mapId))) {
+        std::cout << "[room " << m_id << "] start failed: cannot build map " << m_mapId << std::endl;
+        return false;
+    }
+    m_state = RS_PLAYING;
+
+    SendGameStart();
+
+    S2C_MapInfo map{};
+    m_world.BuildMapInfo(map);
+    Broadcast(&map);
+
+    std::cout << "[room " << m_id << "] game started (map " << m_mapId << ")" << std::endl;
     return true;
 }
 
