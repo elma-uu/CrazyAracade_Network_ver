@@ -373,12 +373,21 @@ bool RoomManager::CheckConsistency() const
     return ok;
 }
 
-void RoomManager::BroadcastRoomListToLobby(int exceptId)
+void RoomManager::BroadcastRoomListToLobby()
 {
+    m_roomListDirty = true;
+}
+
+void RoomManager::FlushRoomList()
+{
+    if (!m_roomListDirty)
+        return;
+    m_roomListDirty = false;
+
     S2C_RoomList list;
     FillRoomList(list);
     for (SESSION& s : g_sessions)
-        if (s.GetState() == ST_LOBBY && s.GetId() != exceptId)
+        if (s.GetState() == ST_LOBBY)   // 방·게임 중이거나 끊긴 세션은 받지 않는다
             s.SendPacket(&list);
 }
 

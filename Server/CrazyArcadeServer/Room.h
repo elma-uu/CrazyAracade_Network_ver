@@ -109,9 +109,14 @@ public:
     // 로비 방 목록 (S2C_RoomList)에 담을 방 1~8의 맵·인원·상태·방장 이름
     void FillRoomList(S2C_RoomList& out) const;
 
-    // 방 인원·상태·맵·방장이 바뀌면 로비(ST_LOBBY)에 있는 세션 전원에게 S2C_RoomList
-    // (입장·퇴장·접속 종료·맵 변경·게임 시작 때 부른다. 색·레디는 목록에 없으므로 부르지 않음)
-    void BroadcastRoomListToLobby(int exceptId = -1);
+    // 방 인원·상태·맵·방장이 바뀌면 부른다 (입장·퇴장·접속 종료·맵 변경·게임 시작. 색·레디는 목록에 없음)
+    // 바로 보내지 않고 "목록이 바뀜"으로 표시만 해 두고, 메인 루프가 보내기 직전에 FlushRoomList()로
+    // 로비(ST_LOBBY) 전원에게 S2C_RoomList를 한 번만 보낸다.
+    // (11/21: 한 루프 안에서 맵을 수천 번 바꾸는 식의 연타가 와도 로비에는 목록이 한 번만 간다)
+    void BroadcastRoomListToLobby();
+
+    // 표시가 있으면 로비 전원에게 지금 방 목록을 보내고 표시를 지운다. Server::Run이 루프마다 호출
+    void FlushRoomList();
 
     // 방 기록(자리의 세션 ID)과 세션 기록(방 번호·자리·상태)이 서로 맞는지 검사.
     // 어긋난 곳마다 "[check] ..." 로그를 남기고 false. Debug 빌드에서 패킷 처리·접속 종료 직후마다
@@ -123,6 +128,7 @@ public:
 
 private:
     std::array<Room, MAX_ROOM> m_rooms;
+    bool m_roomListDirty = false;   // 이번 루프에 로비 목록이 바뀌었는지
 };
 
 extern RoomManager g_roomManager;

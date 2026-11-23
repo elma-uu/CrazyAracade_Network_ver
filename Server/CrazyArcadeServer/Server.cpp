@@ -106,6 +106,9 @@ void Server::Run()
 
         // 3. 게임 중인 방 갱신          (3단계)
 
+        // 이번 루프에 방 목록이 바뀌었으면 로비 전원에게 한 번만 S2C_RoomList (11/21)
+        g_roomManager.FlushRoomList();
+
         // 4. 쌓아 둔 패킷 보내기 (send 에러·송신 큐 초과면 끊기)
         for (SESSION& s : g_sessions)
             if (s.InUse() && !s.FlushSend())
@@ -178,7 +181,7 @@ void Server::Disconnect(int id)
     //    → 로비 전원에게 바뀐 방 목록
     if (g_roomManager.FindRoomOf(id) != -1) {
         g_roomManager.LeaveRoom(id);
-        g_roomManager.BroadcastRoomListToLobby(id);
+        g_roomManager.BroadcastRoomListToLobby();   // 끊긴 세션은 보낼 때 이미 ST_FREE라 받지 않는다
     }
     // 3) 전적 파일 저장                                           (11/30)
     // 4) closesocket 후 ST_FREE로 되돌려 다음 접속자가 쓰게 한다
