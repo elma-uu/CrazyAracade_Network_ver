@@ -46,6 +46,9 @@ public:
     // ST_ROOM에서 ST_INGAME으로
     void EnterGame();
 
+    // 게임이 끝나면 ST_INGAME에서 ST_ROOM으로 (Room::EndGame에서 호출). 다시 레디·시작할 수 있다
+    void ReturnToRoom();
+
     bool InUse() const { return m_state != ST_FREE; }
     int  GetId() const { return m_id; }
     SESSION_STATE GetState() const { return m_state; }

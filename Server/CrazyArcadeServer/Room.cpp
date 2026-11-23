@@ -2,6 +2,7 @@
 #include "Session.h"
 #include <cstring>
 #include <iostream>
+#include <string>
 
 RoomManager g_roomManager;
 
@@ -226,6 +227,49 @@ bool Room::StartGame()
     std::cout << "[room " << m_id << "] game started (map " << m_mapId << ")" << std::endl;
     g_roomManager.BroadcastRoomListToLobby();   // 로비 목록에 "게임 중"으로
     return true;
+}
+
+void Room::EndGame(int winnerSlot, unsigned char reason)
+{
+    if (m_state != RS_PLAYING) {
+        std::cout << "[room " << m_id << "] end game ignored: not playing" << std::endl;
+        return;
+    }
+
+    // 이긴 사람의 세션 ID (무승부·빈 자리면 -1)
+    int winnerId = -1;
+    if (winnerSlot >= 0 && winnerSlot < MAX_ROOM_PLAYER)
+        winnerId = m_members[winnerSlot];
+
+    // 1) 전적 기록: RecordDB::AddResult → Save (11/28·11/30)
+
+    // 2) 결과 알림. win·lose는 받는 사람의 바뀐 전적이므로 사람마다 따로 채운다 (11/30부터 실제 값)
+    S2C_GameOver over{};
+    over.size     = sizeof(over);
+    over.type     = S2C_GAME_OVER;
+    over.winnerId = winnerId;
+    over.reason   = static_cast<OVER_REASON>(reason);
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        if (m_members[i] == -1) continue;
+        SESSION& s = g_sessions[m_members[i]];
+        over.win  = 0;
+        over.lose = 0;
+        s.SendPacket(&over);
+        s.ReturnToRoom();          // ST_INGAME → ST_ROOM (방·자리는 그대로)
+    }
+
+    // 3) 방을 대기 상태로: 다시 시작하려면 전원 레디부터
+    m_state = RS_WAITING;
+    for (bool& ready : m_ready)
+        ready = false;
+    m_move.Clear();
+
+    std::cout << "[room " << m_id << "] game over: "
+              << (winnerId == -1 ? std::string("draw") : "winner id " + std::to_string(winnerId))
+              << (reason == OVER_OTHERS_LEFT ? " (others left)" : "") << std::endl;
+
+    SendRoomInfo();                             // 레디가 풀린 방 정보
+    g_roomManager.BroadcastRoomListToLobby();   // 로비 목록에 다시 "대기 중"으로
 }
 
 void Room::GetStartTile(int slot, int& x, int& y)

@@ -69,6 +69,12 @@ public:
     // 판 준비에 실패하면(맵 번호 오류) 시작하지 않고 false
     bool StartGame();
 
+    // 게임 끝 (계획서 3.5): 전적 기록(11/30) → S2C_GameOver → 레디 초기화, RS_WAITING, 참가자 ST_ROOM
+    // winnerSlot: 이긴 사람의 자리 0~3, 무승부면 -2 (S2C_GameOver의 winnerId는 -1)
+    // reason: OVER_NORMAL(생존자 1명 이하) / OVER_OTHERS_LEFT(다른 사람이 모두 나감)
+    // 게임 중이 아니면 아무 일도 하지 않는다
+    void EndGame(int winnerSlot, unsigned char reason);
+
     // OnInput·OnAttack 등 인게임 처리에서 사용
     GameWorld& World() { return m_world; }
 
