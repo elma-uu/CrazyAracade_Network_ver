@@ -84,6 +84,8 @@
     <ClInclude Include="..\FixedStepLoop.h" />
     <ClInclude Include="..\GameWorld.h" />
     <ClInclude Include="..\ServerBomb.h" />
+    <ClInclude Include="PlayerMovement.h" />
+    <ClInclude Include="StageState.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="Session.h" />
@@ -91,6 +93,8 @@
   <ItemGroup>
     <ClCompile Include="..\GameWorld.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PlayerMovement.cpp" />
+    <ClCompile Include="StageState.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />

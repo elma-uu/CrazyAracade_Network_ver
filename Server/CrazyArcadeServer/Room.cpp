@@ -137,7 +137,7 @@ bool Room::SelectMap(int sessionId, int mapId)
         return true;
 
     m_mapId = mapId;
-    // 바뀐 맵을 확인하고 다시 레디하도록 전원(방장 포함) 레디 해제
+    // 맵이 바뀌면 전원 레디 해제
     for (bool& ready : m_ready)
         ready = false;
     std::cout << "[room " << m_id << "] map -> " << mapId << " (ready cleared)" << std::endl;
@@ -245,6 +245,8 @@ void Room::SendGameStart()
     p.type  = S2C_GAME_START;
     p.mapId = static_cast<MAP_ID>(m_mapId);
 
+    m_move.Clear();
+    m_stage.Init(m_mapId);
     for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
         START_PLAYER& sp = p.players[i];
         if (m_members[i] == -1) {   // 빈 자리
@@ -253,13 +255,15 @@ void Room::SendGameStart()
         }
         int x = 0, y = 0;
         GetStartTile(i, x, y);
+        m_move.Spawn(i, m_members[i], x, y);
+        m_stage.AddPlayer(i, m_members[i]);
         sp.id    = m_members[i];
         sp.x     = static_cast<unsigned char>(x);
         sp.y     = static_cast<unsigned char>(y);
         sp.color = m_color[i];
     }
 
-    // 내용은 같고 mySlot만 받는 사람의 자리로 바꿔 보낸다
+    // mySlot만 바꿔서 보낸다
     for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
         if (m_members[i] == -1) continue;
         p.mySlot = static_cast<unsigned char>(i);
@@ -269,6 +273,33 @@ void Room::SendGameStart()
     }
     std::cout << "[room " << m_id << "] S2C_GameStart sent (map " << m_mapId << ", "
               << GetPlayerCount() << " players)" << std::endl;
+
+    // 시작 상태도 보낸다
+    SendStageState();
+}
+
+void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
+{
+    if (m_state != RS_PLAYING) return;
+    // 출발할 때마다 S2C_Move
+    m_move.Step(canWalk, [this](const S2C_Move& m) { Broadcast(&m); });
+
+    // 사과상자 옆이면 사과를 넣는다
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        const ServerPlayer& sp = m_move.Get(i);
+        if (sp.sessionId == -1) continue;
+        m_stage.DepositApples(i, sp.x, sp.y);
+    }
+    if (m_stage.IsChanged())
+        SendStageState();
+}
+
+void Room::SendStageState()
+{
+    S2C_StageState s;
+    m_stage.Fill(s);
+    Broadcast(&s);
+    m_stage.ClearChanged();
 }
 
 void Room::FillRoomInfo(S2C_RoomInfo& out) const

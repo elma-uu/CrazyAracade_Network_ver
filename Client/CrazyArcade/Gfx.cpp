@@ -37,7 +37,7 @@ namespace {
         return font;
     }
 
-    // TextOutW(0,0)으로 찍었을 때 실제로 칠해지는 픽셀 범위 (글꼴 위아래 여백 제외)
+    // 실제로 칠해지는 픽셀 범위
     RECT InkBox(int size, const std::wstring& text)
     {
         auto key = std::make_pair(size, text);
@@ -279,7 +279,7 @@ void Gfx::DrawSmallText(HDC hdc, int x, int y, const std::wstring& text, COLORRE
     HGDIOBJ oldFont = SelectObject(hdc, SmallFont());
     int oldBkMode = SetBkMode(hdc, TRANSPARENT);
     COLORREF oldColor = SetTextColor(hdc, RGB(0, 0, 0));
-    // 어떤 배경 위에서도 읽히도록 검은 그림자 한 번 + 본문
+    // 그림자 먼저 찍기
     TextOutW(hdc, x + 1, y + 1, text.c_str(), static_cast<int>(text.size()));
     SetTextColor(hdc, color);
     TextOutW(hdc, x, y, text.c_str(), static_cast<int>(text.size()));
@@ -291,7 +291,7 @@ void Gfx::DrawSmallText(HDC hdc, int x, int y, const std::wstring& text, COLORRE
 
 void Gfx::DrawNoticeBar(HDC hdc, const std::wstring& text)
 {
-    // 화면 가운데 검은 띠 + 가운데 정렬 글씨
+    // 가운데 검은 띠
     RECT band = { 0, Config::ScreenHeight / 2 - 40, Config::ScreenWidth, Config::ScreenHeight / 2 + 40 };
     FillRect(hdc, &band, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
 

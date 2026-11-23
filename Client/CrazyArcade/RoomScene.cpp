@@ -9,7 +9,7 @@
 using namespace Ui;
 
 namespace {
-    // 안내 문구도 채팅 칸에 쌓는다 (방 채팅)
+    // 안내 문구도 채팅 칸에 쌓는다
     void Log(const std::wstring& text, COLORREF color)
     {
         GameClient::AddChat(GameClient::ChatChannel::Room, text, color);
@@ -18,8 +18,7 @@ namespace {
     // room_bg.bmp 기준 좌표
     constexpr int kMapCellX = 496, kMapCellY = 200, kMapCellW = 84, kMapCellH = 70, kMapCellStep = 92;
     constexpr int kColorX = 487, kColorY = 284, kColorW = 36, kColorH = 35;   // 팔레트 한 칸
-    // 빨강·노랑·주황·초록·청록·파랑·보라 (0~6, 계획서·서버와 같음).
-    // 배경 그림의 팔레트는 8칸이라 마지막(검정) 칸은 고를 수 없게 어둡게 덮는다
+    // 배경 팔레트는 8칸이라 마지막 칸은 막아 둔다
     constexpr int kColorCount = 7;
     constexpr int kPaletteCells = 8;
     const RECT kLeaveButton = Box(647, 429, 122, 45);
@@ -31,7 +30,7 @@ namespace {
     constexpr RECT kReadyCheck = { 0, 88, 27, 19 };   // 초록 체크 하나
     constexpr RECT kColorCheck = { 30, 88, 30, 21 };
 
-    // 준비 안 한 '준 비'는 배경에 원래 있던 흐린 글씨 색
+    // 준비 안 함 글씨 색
     constexpr COLORREF kNotReady = RGB(0x3d, 0x7f, 0xc0);
 
     const MAP_ID kMaps[3] = { MAP_FOREST, MAP_CITY, MAP_ICE };
@@ -101,7 +100,7 @@ void RoomScene::Update(float)
         SceneManager::ChangeScene(SceneType::Lobby);
         return;
     }
-    // 서버가 S2C_GameStart를 보냄 → 그 맵의 스테이지로
+    // 게임이 시작되면 그 맵으로
     if (GameClient::IsInGame()) {
         switch (GameClient::GameStart().map) {
         case MAP_CITY: SceneManager::ChangeScene(SceneType::City); break;
@@ -117,7 +116,7 @@ void RoomScene::Update(float)
         return;
     }
 
-    // 마우스가 올라간 칸 = 노란 테두리
+    // 마우스 올린 칸
     POINT p = ToCanvas(Input::GetMousePosition());
     const bool inClient = Input::IsMouseInClient();
     mHoverMap = mHoverColor = mHoverButton = -1;
@@ -131,7 +130,7 @@ void RoomScene::Update(float)
     LogRoomChanges();
     mChat.Update(GameClient::Chat(GameClient::ChatChannel::Room), p, inClient);
 
-    // 채팅 입력 (Enter는 입력 중이면 보내기, 아니면 시작/준비)
+    // 채팅 입력
     std::wstring chat;
     if (mInput.Update(p, inClient, chat)) GameClient::SendChat(GameClient::ChatChannel::Room, chat);
     if (Input::GetKeyDown(VK_RETURN) && !mInput.Focused()) PressStart();
@@ -166,7 +165,7 @@ void RoomScene::PressStart()
     if (mySlot >= 0) GameClient::SetReady(!room.players[mySlot].ready);
 }
 
-// 방 상태가 바뀐 것을 채팅 칸에 알린다 (들어옴·나감·준비·방장·맵)
+// 방 상태 변화를 채팅 칸에 알린다
 void RoomScene::LogRoomChanges()
 {
     const GameClient::RoomState& now = GameClient::CurrentRoom();
@@ -269,7 +268,7 @@ void RoomScene::DrawColors(HDC c) const
     for (int i = 0; i < kColorCount; ++i) {
         RECT cell = ColorCell(i);
         RECT inner = { cell.left + 3, cell.top + 2, cell.right - 4, cell.bottom - 3 };
-        // 다른 사람이 쓰는 색은 어둡게 + X
+        // 남이 쓰는 색은 X 표시
         if (ColorTaken(room, i, mySlot)) {
             Gfx::FillAlpha(c, inner, RGB(6, 32, 74), 150);
             HPEN pen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));

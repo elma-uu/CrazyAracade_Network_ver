@@ -20,6 +20,8 @@ GameClient::RoomState GameClient::sRoom;
 int GameClient::sMySlot = -1;
 bool GameClient::sInGame = false;
 GameClient::GameStartInfo GameClient::sGameStart;
+GameClient::MoveView GameClient::sMoves[MAX_ROOM_PLAYER];
+bool GameClient::sHasMove[MAX_ROOM_PLAYER] = {};
 std::vector<GameClient::ChatLine> GameClient::sLobbyChat;
 std::vector<GameClient::ChatLine> GameClient::sRoomChat;
 std::wstring GameClient::sNotice;
@@ -32,9 +34,9 @@ std::wstring GameClient::sLastEcho;
 
 namespace {
     constexpr ULONGLONG kNoticeMs = 3000;
-    constexpr int kColorCount = 7;   // 대기방 색 0~6 (계획서·protocol.h, 인게임 캐릭터도 7색)
+    constexpr int kColorCount = 7;   // 색 0~6
 
-    // 서버가 보낸 UTF-8 이름(끝 '\0' 없을 수도 있음) → 화면용 wstring
+    // UTF-8 이름을 화면용 wstring으로 바꾼다
     std::wstring Utf8NameToWide(const char* name, size_t maxLen)
     {
         int bytes = static_cast<int>(strnlen(name, maxLen));
@@ -50,7 +52,7 @@ void GameClient::Update()
 {
     UpdateEchoTest();
 
-    // 서버 패킷을 먼저 반영한 뒤 씬을 갱신한다
+    // 서버 패킷을 먼저 처리한다
     NetworkManager::Poll();
     if (NetworkManager::ConsumeConnectionLost()) {
         ResetLogin();
@@ -96,8 +98,8 @@ void GameClient::ResetLogin()
 {
     sLoginState = LoginState::None;
     sMyId = -1;
-    sWins = sLosses = 0;   // 다음 로그인에 이전 사람의 전적이 보이지 않게
-    // 방에 있던 상태도 비운다 (끊긴 경우 C2S_LeaveRoom은 보낼 수 없음)
+    sWins = sLosses = 0;   // 이전 전적 지우기
+    // 방 상태도 비운다
     sRoom = RoomState{};
     sMySlot = -1;
     sJoinState = JoinState::None;
@@ -109,7 +111,7 @@ void GameClient::ResetLogin()
 
 void GameClient::OnLoginResult(const S2C_LoginResult* p)
 {
-    // 요청하지 않은 응답은 무시 (늦게 온 응답 등)
+    // 요청하지 않은 응답은 무시
     if (sLoginState != LoginState::Waiting) return;
 
     if (!p->success) {
@@ -189,7 +191,7 @@ const std::vector<GameClient::ChatLine>& GameClient::Chat(ChatChannel channel)
 
 void GameClient::SendChat(ChatChannel channel, const std::wstring& text)
 {
-    // TODO: 채팅 패킷이 생기면 여기서 서버로 보내고, 서버가 돌려준 것을 AddChat 한다
+    // TODO: 채팅 패킷이 생기면 서버로 보내기
     AddChat(channel, sMyName + L" : " + text, RGB(255, 255, 255));
 }
 
@@ -208,7 +210,7 @@ void GameClient::RequestJoinRoom(int roomId)
 
 void GameClient::BuildPreviewRoom(int roomId)
 {
-    // 미리보기: 로비 샘플 목록의 그 방에 내가 들어간 것처럼 방 상태를 만든다
+    // 미리보기용 가짜 방 상태
     const RoomView& r = sRooms[std::clamp(roomId - 1, 0, MAX_ROOM - 1)];
     sRoom = RoomState{};
     sRoom.roomId = roomId;
@@ -227,11 +229,11 @@ void GameClient::BuildPreviewRoom(int roomId)
             while (r.host == others[other % 6]) ++other;
             p.name = others[other++ % 6];
         }
-        p.color = (slot * 3) % kColorCount;   // 서로 다른 색 (0, 3, 6)
+        p.color = (slot * 3) % kColorCount;   // 서로 다른 색
         p.ready = (i != 0) && (i % 2 == 1);  // 방장 빼고 일부만 준비
     }
 
-    // 남은 첫 자리에 나, 아직 아무도 안 쓴 첫 번째 색
+    // 빈자리에 나를 넣고 안 쓰는 색을 준다
     RoomPlayerView& me = sRoom.players[slot];
     me.exist = true;
     me.id = (sMyId >= 0) ? sMyId : 1;
@@ -262,7 +264,7 @@ void GameClient::SelectMap(MAP_ID map)
     if (!AmIHost()) return;
     if (!sLobbyPreview) { NetworkManager::SendSelectMap(map); return; }
     sRoom.map = map;
-    for (RoomPlayerView& p : sRoom.players) p.ready = false;   // 서버와 같은 규칙: 맵이 바뀌면 준비 해제
+    for (RoomPlayerView& p : sRoom.players) p.ready = false;   // 맵이 바뀌면 준비 해제
 }
 
 void GameClient::SelectColor(int color)
@@ -285,9 +287,7 @@ void GameClient::StartGame()
 {
     if (!AmIHost()) return;
     if (!sLobbyPreview) {
-        // 계획서·서버(Room::CanStart)는 방장까지 전원 레디여야 시작된다.
-        // 방장 화면에는 준비 버튼 대신 시작 버튼 하나만 있으므로, 시작을 누르면 방장 레디를
-        // 먼저 보내고 바로 시작을 요청한다 (서버는 받은 순서대로 처리)
+        // 서버는 방장도 레디해야 시작하므로 레디를 먼저 보낸다
         NetworkManager::SendReady(true);
         NetworkManager::SendStartGame();
         return;
@@ -309,7 +309,7 @@ void GameClient::OnRoomEnterResult(const S2C_RoomEnterResult* p)
     sRoom = RoomState{};
     sRoom.roomId = p->roomId;
     sMySlot = p->slot;
-    // 자리·맵 등은 바로 뒤에 오는 S2C_RoomInfo로 채워진다
+    // 나머지는 S2C_RoomInfo로 채워진다
 }
 
 void GameClient::OnRoomInfo(const S2C_RoomInfo* p)
@@ -339,7 +339,7 @@ void GameClient::OnPlayerLeave(const S2C_PlayerLeave* p)
 
 void GameClient::OnGameStart(const S2C_GameStart* p)
 {
-    // 방에 들어가 있을 때만 (요청하지 않은 시작 알림은 무시)
+    // 방에 있을 때만 받는다
     if (sJoinState != JoinState::Joined) return;
     if (p->mapId < MAP_FOREST || p->mapId > MAP_ICE || p->mySlot >= MAX_ROOM_PLAYER) {
         OutputDebugStringA("[net] S2C_GameStart: 잘못된 맵/자리, 무시\n");
@@ -363,6 +363,36 @@ void GameClient::OnGameStart(const S2C_GameStart* p)
     }
     sMySlot = p->mySlot;
     sInGame = true;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) sHasMove[i] = false;   // 지난 판 이동이 남지 않게
+}
+
+// id를 자리 번호로 바꿔 저장해 둔다
+void GameClient::OnMove(const S2C_Move* p)
+{
+    if (!sInGame) return;
+    if (p->x >= MAP_TILES || p->y >= MAP_TILES || p->destX >= MAP_TILES || p->destY >= MAP_TILES) return;
+
+    int slot = -1;
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+        if (sGameStart.players[i].exist && sGameStart.players[i].id == p->id) slot = i;
+    if (slot == -1) return;   // 모르는 사람
+
+    MoveView& m = sMoves[slot];
+    m.x = p->x;
+    m.y = p->y;
+    m.destX = p->destX;
+    m.destY = p->destY;
+    m.dir = p->dir;
+    m.speed = p->speed;
+    sHasMove[slot] = true;   // 여러 개 오면 마지막 것만 쓴다
+}
+
+bool GameClient::TakeMove(int slot, MoveView& out)
+{
+    if (slot < 0 || slot >= MAX_ROOM_PLAYER || !sHasMove[slot]) return false;
+    out = sMoves[slot];
+    sHasMove[slot] = false;
+    return true;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)

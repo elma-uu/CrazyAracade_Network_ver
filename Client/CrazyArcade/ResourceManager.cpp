@@ -5,7 +5,7 @@ HBITMAP ResourceManager::sBitmaps[static_cast<int>(BitmapID::Count)] = {};
 
 void ResourceManager::LoadAll(HINSTANCE hInst)
 {
-    // dib = true: 32비트 알파를 살리려고 DIB 섹션으로 읽는다 (LoadBitmap은 알파를 버림)
+    // 알파를 살리려고 DIB로 읽는다
     struct Entry { BitmapID id; int resource; bool dib; };
     static const Entry entries[] = {
         { BitmapID::Login,           IDB_BITMAP_GAME_LOGIN },

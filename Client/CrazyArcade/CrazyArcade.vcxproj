@@ -73,7 +73,7 @@
     <FmodDir Condition="'$(FmodDir)'==''">C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio API Windows\api\core\</FmodDir>
     <FmodArch Condition="'$(Platform)'=='Win32'">x86</FmodArch>
     <FmodArch Condition="'$(Platform)'=='x64'">x64</FmodArch>
-    <!-- FMOD가 설치된 PC에서만 소리를 켠다. 없으면 HAS_FMOD 없이 소리 없이 빌드 -->
+    <!-- FMOD가 있을 때만 소리를 켠다 -->
     <HasFmod Condition="Exists('$(FmodDir)inc\fmod.hpp')">true</HasFmod>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

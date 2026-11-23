@@ -6,7 +6,7 @@
 #include "GameClient.h"
 
 namespace {
-    // 입력칸 위치 (1500x900 화면 가운데)
+    // 입력칸 위치
     constexpr int kBoxX = 560;
     constexpr int kBoxW = 420;
     constexpr int kBoxH = 46;
@@ -15,7 +15,7 @@ namespace {
 
     constexpr int kMaxNameBytes = MAX_NAME_LEN - 1;   // UTF-8 기준, '\0' 자리 제외
     constexpr size_t kMaxIpChars = 15;                // "255.255.255.255"
-    constexpr ULONGLONG kLoginTimeoutMs = 5000;       // 접속 후 로그인 응답을 기다리는 최대 시간
+    constexpr ULONGLONG kLoginTimeoutMs = 5000;       // 로그인 응답 대기 시간
 
     RECT BoxRect(int field)
     {
@@ -44,21 +44,21 @@ void LoginScene::OnExit()
 
 void LoginScene::Update(float)
 {
-    // 로그인 전에 화면을 떠나면 접속도 끊는다 (서버에 닉네임 없는 세션이 남지 않게)
+    // 로그인 전에 나가면 접속도 끊는다
     if (Input::GetKeyDown(VK_ESCAPE)) {
         NetworkManager::Disconnect();
         GameClient::ResetLogin();
         SceneManager::ChangeScene(SceneType::Title);
         return;
     }
-    // 온라인 인게임이 완성될 때까지 기존 2인 모드도 들어갈 수 있게 남겨 둔다
+    // 기존 2인 모드
     if (Input::GetKeyDown(VK_F9)) {
         NetworkManager::Disconnect();
         GameClient::ResetLogin();
         SceneManager::ChangeScene(SceneType::Select);
         return;
     }
-    // 서버 없이 로비 화면만 확인 (샘플 방 목록)
+    // 로비 미리보기
     if (Input::GetKeyDown(VK_F8)) {
         NetworkManager::Disconnect();
         GameClient::ResetLogin();
@@ -118,12 +118,12 @@ void LoginScene::TypeChar(wchar_t ch)
         return;
     }
 
-    // 전적 파일이 "닉네임 승 패"를 공백으로 나누므로 공백은 받지 않는다
+    // 전적 파일이 공백으로 나뉘어서 공백은 막는다
     if (ch == L' ') {
         mMessage = L"닉네임에는 공백을 쓸 수 없습니다";
         return;
     }
-    // 이모지 등 서로게이트 쌍은 백스페이스로 반쪽만 지워질 수 있어 받지 않는다
+    // 이모지는 받지 않는다
     if (ch >= 0xD800 && ch <= 0xDFFF) return;
 
     if (Utf8Bytes(mName + ch) > kMaxNameBytes) {
@@ -191,7 +191,7 @@ void LoginScene::UpdateLoginWait()
         SceneManager::ChangeScene(SceneType::Lobby);
         break;
     case GameClient::LoginState::Failed:
-        // 서버는 이유를 보내지 않는다. 계획서상 서버가 막는 경우는 중복 닉네임뿐
+        // 서버가 막는 건 중복 닉네임뿐이다
         mFocus = FieldName;
         fail(L"로그인 실패: 이미 접속 중인 닉네임입니다");
         break;

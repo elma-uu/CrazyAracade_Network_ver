@@ -1,7 +1,10 @@
 #pragma once
 #include <array>
+#include <functional>
 #include "protocol.h"
 #include "GameWorld.h"   // Server/GameWorld.h (민규동)
+#include "PlayerMovement.h"
+#include "StageState.h"
 
 enum ROOM_STATE { RS_EMPTY, RS_WAITING, RS_PLAYING };
 
@@ -30,13 +33,10 @@ public:
     void SendRoomInfo();
     void FillRoomInfo(S2C_RoomInfo& out) const;
 
-    // 방장만 (1 숲, 2 도시, 3 얼음), 바꾸면 전원 레디 해제.
-    // 대기 중이 아니거나 방장이 아니거나 맵 번호가 잘못되면 false (로그를 남김)
-    // 같은 맵을 다시 고르면 바뀐 것이 없으므로 true만 돌려주고 레디는 그대로 둔다
+    // 방장만 바꿀 수 있고, 바뀌면 전원 레디 해제
     bool SelectMap(int sessionId, int mapId);
 
-    // 자리(slot)의 캐릭터 색 변경. 색은 0~6 (원본 캐릭터 7색, protocol.h C2S_SelectColor)
-    // 대기 중이 아니거나, 범위 밖이거나, 같은 방의 다른 사람이 쓰는 색이면 false
+    // 색은 0~6, 남이 쓰는 색은 안 됨
     bool SetColor(int slot, int color);
 
     // 레디 켜기/끄기만 한다. 게임을 시작하지는 않는다 (C2S_Ready 처리에서 호출 → SendRoomInfo)
@@ -46,14 +46,20 @@ public:
     // 2명 이상 && 방장 포함 전원 레디 (혼자서는 불가)
     bool CanStart() const;
 
-    // 게임 시작 위치: 맵의 네 모서리 (계획서 1장). 자리 0 왼쪽 위, 1 오른쪽 위, 2 왼쪽 아래, 3 오른쪽 아래
-    // x = 열(col), y = 행(row). GameWorld도 같은 칸을 비워 두고 플레이어를 놓아야 한다
+    // 시작 칸은 맵 네 모서리
     static void GetStartTile(int slot, int& x, int& y);
 
-    // 방 안 전원에게 S2C_GameStart (mySlot은 받는 사람마다 다름), 받은 세션은 ST_INGAME으로.
-    // 맵·참가자 ID·시작 위치·대기방에서 고른 색을 담는다. 빈 자리는 id = -1
-    // Room::StartGame(GameWorld::Init 뒤, S2C_MapInfo 앞)에서 부른다
+    // 방 전원에게 S2C_GameStart를 보낸다
     void SendGameStart();
+
+    // 게임 중 12ms마다 부른다
+    void StepMovement(const std::function<bool(int, int)>& canWalk);
+    PlayerMovement& Movement() { return m_move; }
+
+    // 사과나무가 터지면 Stage().AddApples를 부르면 된다
+    StageState& Stage() { return m_stage; }
+    // 방 전원에게 S2C_StageState
+    void SendStageState();
 
     // 대기 중 && 방장 && CanStart() 일 때만 StartGame() 후 true.
     // 안 되면 이유를 로그로 남기고 false
@@ -87,7 +93,9 @@ private:
     unsigned int m_nextOrder = 0;
 
     // 이 방에서 진행 중인 게임 (판·물풍선·고정 스텝)
-    GameWorld m_world;
+    GameWorld      m_world;
+    PlayerMovement m_move;   // 게임 중 위치
+    StageState     m_stage;  // 스테이지 상태
 };
 
 // 방 1~8번 고정, 항상 로비에 표시

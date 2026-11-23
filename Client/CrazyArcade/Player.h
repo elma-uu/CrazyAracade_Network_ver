@@ -45,6 +45,10 @@ public:
 
     static void ToggleFootDebug() { sShowFootDebug = !sShowFootDebug; }
 
+    // 온라인 이동
+    void SetNetMove(int x, int y, int destX, int destY, int dir, float speed);
+    void UpdateNetMove(float deltaTime);
+
 private:
     void RenderFootDebug(HDC hdc) const;
     static bool sShowFootDebug;
@@ -73,4 +77,8 @@ private:
     int mApples = 0;
     int mHitTimerMs = 0;
     int mPickedItems[static_cast<int>(ItemType::Count)] = {};
+
+    // 온라인 보간
+    float mNetDestX = 0, mNetDestY = 0;
+    float mNetAnimMs = 0;   // 걷기 그림 넘기는 시간
 };

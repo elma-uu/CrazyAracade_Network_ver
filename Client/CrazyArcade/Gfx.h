@@ -11,24 +11,22 @@ namespace Gfx {
     void DrawOpaque(HDC dst, BitmapID id, int x, int y, int w, int h, int srcX, int srcY, int srcW, int srcH);
 
     void DrawOutlinedText(HDC hdc, int x, int y, const std::wstring& text);
-    // 안내 문구·입력칸용 작은 글씨 (그림자 포함)
+    // 작은 글씨
     void DrawSmallText(HDC hdc, int x, int y, const std::wstring& text, COLORREF color = RGB(255, 255, 255));
-    // 화면 가운데 띠 모양 안내 (접속 실패·끊김 등)
+    // 가운데 안내 띠
     void DrawNoticeBar(HDC hdc, const std::wstring& text);
     void DrawDarkOverlay(HDC hdc, int width, int height);
 
-    // 32비트 미리 곱한 알파 비트맵(ResourceManager에서 dib로 읽은 것)을 반투명 경계 그대로 그린다 (1:1)
+    // 알파 비트맵 그리기
     void DrawAlpha(HDC dst, BitmapID id, int x, int y, int srcX, int srcY, int w, int h);
-    // 사각형 영역을 color로 alpha(0~255)만큼 덮는다 (들어갈 수 없는 칸 어둡게 등)
+    // 반투명으로 덮기
     void FillAlpha(HDC hdc, const RECT& rc, COLORREF color, BYTE alpha);
-    // 둥근 테두리만 그린다 (선택 표시)
+    // 둥근 테두리
     void DrawRoundFrame(HDC hdc, const RECT& rc, int radius, COLORREF color, int width);
 
-    // ---- 픽셀 글씨 (돋움 Bold, 안티앨리어싱 없음, 테두리) ----
-    // 원작 UI 글씨에 맞춘 글씨. 실제로 찍히는 픽셀 범위를 재서 box 안에 정확히 놓는다.
-    // 세로는 기준 글자 '한'의 높이로 맞춰서 숫자만 있는 줄도 한글 줄과 같은 높이에 온다.
+    // 원작 UI 느낌의 픽셀 글씨
     enum class Align { Left, Center, Right };
-    // 픽셀 글씨 폭(테두리 제외) / maxWidth 안에 들어가는 글자 수 (채팅 줄바꿈용)
+    // 글씨 폭과 줄바꿈용 글자 수
     int PixelTextWidth(const std::wstring& text, int size = 12);
     int PixelTextFit(const std::wstring& text, int maxWidth, int size = 12);
     void DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLORREF color,

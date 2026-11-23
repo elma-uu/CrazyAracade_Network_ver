@@ -109,7 +109,7 @@ void Game::Frame()
     Input::Update();
     Time::Update();
     Audio::Update();
-    // 서버 패킷을 먼저 반영한 뒤 씬을 갱신한다
+    // 서버 패킷을 먼저 처리한다
     GameClient::Update();
 
     float deltaMs = sceneChanged ? 0.0f : Time::DeltaMs();
