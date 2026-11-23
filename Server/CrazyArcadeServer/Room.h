@@ -109,6 +109,10 @@ public:
     // 로비 방 목록 (S2C_RoomList)에 담을 방 1~8의 맵·인원·상태·방장 이름
     void FillRoomList(S2C_RoomList& out) const;
 
+    // 방 인원·상태·맵·방장이 바뀌면 로비(ST_LOBBY)에 있는 세션 전원에게 S2C_RoomList
+    // (입장·퇴장·접속 종료·맵 변경·게임 시작 때 부른다. 색·레디는 목록에 없으므로 부르지 않음)
+    void BroadcastRoomListToLobby(int exceptId = -1);
+
     Room&       Get(int roomId)       { return m_rooms[roomId - 1]; }   // roomId 1~8
     const Room& Get(int roomId) const { return m_rooms[roomId - 1]; }
 

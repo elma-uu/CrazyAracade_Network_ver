@@ -224,6 +224,7 @@ bool Room::StartGame()
     Broadcast(&map);
 
     std::cout << "[room " << m_id << "] game started (map " << m_mapId << ")" << std::endl;
+    g_roomManager.BroadcastRoomListToLobby();   // 로비 목록에 "게임 중"으로
     return true;
 }
 
@@ -323,6 +324,15 @@ int RoomManager::FindRoomOf(int sessionId) const
         if (r.FindSlot(sessionId) != -1)
             return r.GetId();
     return -1;
+}
+
+void RoomManager::BroadcastRoomListToLobby(int exceptId)
+{
+    S2C_RoomList list;
+    FillRoomList(list);
+    for (SESSION& s : g_sessions)
+        if (s.GetState() == ST_LOBBY && s.GetId() != exceptId)
+            s.SendPacket(&list);
 }
 
 void RoomManager::FillRoomList(S2C_RoomList& out) const

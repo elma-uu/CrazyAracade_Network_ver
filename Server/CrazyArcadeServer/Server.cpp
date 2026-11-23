@@ -175,7 +175,11 @@ void Server::Disconnect(int id)
     // 1) 게임 중이었으면 탈락 처리, 생존자 1명이면 S2C_GameOver   (11/26)
     // 2) 방에 있었으면 퇴장 처리, 방장이었으면 위임 → 남은 사람에게 S2C_PlayerLeave·S2C_RoomInfo
     //    (빼지 않으면 같은 세션 번호로 들어온 다음 접속자가 그 방에 있는 것으로 보인다)
-    g_roomManager.LeaveRoom(id);
+    //    → 로비 전원에게 바뀐 방 목록
+    if (g_roomManager.FindRoomOf(id) != -1) {
+        g_roomManager.LeaveRoom(id);
+        g_roomManager.BroadcastRoomListToLobby(id);
+    }
     // 3) 전적 파일 저장                                           (11/30)
     // 4) closesocket 후 ST_FREE로 되돌려 다음 접속자가 쓰게 한다
     s.Reset();

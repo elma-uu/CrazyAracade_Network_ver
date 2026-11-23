@@ -334,11 +334,14 @@ void SESSION::OnJoinRoom(const C2S_JoinRoom* p)
     room.SendRoomInfo();
     std::cout << "[" << m_id << "] joined room " << roomId << " slot " << slot
               << (room.IsHost(m_id) ? " (host)" : "") << std::endl;
+
+    // 로비에 남은 사람들의 방 목록 갱신 (나는 이미 ST_ROOM이라 받지 않는다)
+    g_roomManager.BroadcastRoomListToLobby();
 }
 
 // 방에서 나가기 → 로비. 남은 사람에게 알리는 것(S2C_PlayerLeave, S2C_RoomInfo)과
 // 방장 위임은 Room::Leave가 한다. 나간 본인에게는 따로 응답하지 않는다.
-// (게임 중 나가기는 접속 종료로만 처리 → 11/26, 로비 방 목록 갱신은 11/18)
+// (게임 중 나가기는 접속 종료로만 처리 → 11/26)
 void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
 {
     if (m_state != ST_ROOM) {
@@ -352,6 +355,9 @@ void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
     m_slot   = -1;
     m_state  = ST_LOBBY;
     std::cout << "[" << m_id << "] left room " << roomId << " -> lobby" << std::endl;
+
+    // 로비 전원(방금 로비로 돌아온 나 포함)에게 바뀐 방 목록
+    g_roomManager.BroadcastRoomListToLobby();
 }
 
 // 방장의 맵 선택. 방장이 아니거나 잘못된 맵이면 Room::SelectMap이 거부하고 로그만 남긴다.
@@ -364,8 +370,10 @@ void SESSION::OnSelectMap(const C2S_SelectMap* p)
     }
     Room& room = g_roomManager.Get(m_roomId);
     int before = room.GetMapId();
-    if (room.SelectMap(m_id, p->mapId) && room.GetMapId() != before)
+    if (room.SelectMap(m_id, p->mapId) && room.GetMapId() != before) {
         room.SendRoomInfo();
+        g_roomManager.BroadcastRoomListToLobby();   // 로비 목록의 맵 아이콘 갱신 (11/18 김형민)
+    }
 }
 
 // 색상 선택 (누구나). 바뀌면 방 안 전원에게 S2C_RoomInfo.
