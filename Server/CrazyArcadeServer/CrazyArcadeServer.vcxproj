@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\Common\protocol.h" />
     <ClInclude Include="PlayerMovement.h" />
+    <ClInclude Include="StageState.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="Session.h" />
@@ -89,6 +90,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PlayerMovement.cpp" />
+    <ClCompile Include="StageState.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />

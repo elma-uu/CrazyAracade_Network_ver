@@ -223,6 +223,7 @@ void Room::SendGameStart()
     p.mapId = static_cast<MAP_ID>(m_mapId);
 
     m_move.Clear();
+    m_stage.Init(m_mapId);
     for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
         START_PLAYER& sp = p.players[i];
         if (m_members[i] == -1) {   // 빈 자리
@@ -232,6 +233,7 @@ void Room::SendGameStart()
         int x = 0, y = 0;
         GetStartTile(i, x, y);
         m_move.Spawn(i, m_members[i], x, y);   // 서버 이동도 같은 칸에서 시작 (11/18)
+        m_stage.AddPlayer(i, m_members[i]);    // 스테이지 상태 (11/23)
         sp.id    = m_members[i];
         sp.x     = static_cast<unsigned char>(x);
         sp.y     = static_cast<unsigned char>(y);
@@ -248,6 +250,9 @@ void Room::SendGameStart()
     }
     std::cout << "[room " << m_id << "] S2C_GameStart sent (map " << m_mapId << ", "
               << GetPlayerCount() << " players)" << std::endl;
+
+    // 시작 상태 (사과 0, 사과상자 0, 전원 생존)
+    SendStageState();
 }
 
 void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
@@ -255,6 +260,23 @@ void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
     if (m_state != RS_PLAYING) return;
     // 출발할 때마다 방 안 전원에게 S2C_Move (11/20)
     m_move.Step(canWalk, [this](const S2C_Move& m) { Broadcast(&m); });
+
+    // 숲: 내 사과상자 옆에 도착했으면 들고 있던 사과를 상자에 넣는다 (11/23)
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        const ServerPlayer& sp = m_move.Get(i);
+        if (sp.sessionId == -1) continue;
+        m_stage.DepositApples(i, sp.x, sp.y);
+    }
+    if (m_stage.IsChanged())
+        SendStageState();
+}
+
+void Room::SendStageState()
+{
+    S2C_StageState s;
+    m_stage.Fill(s);
+    Broadcast(&s);
+    m_stage.ClearChanged();
 }
 
 void Room::FillRoomInfo(S2C_RoomInfo& out) const

@@ -3,6 +3,7 @@
 #include <functional>
 #include "protocol.h"
 #include "PlayerMovement.h"
+#include "StageState.h"
 
 enum ROOM_STATE { RS_EMPTY, RS_WAITING, RS_PLAYING };
 
@@ -63,6 +64,12 @@ public:
     void StepMovement(const std::function<bool(int, int)>& canWalk);
     PlayerMovement& Movement() { return m_move; }
 
+    // 11/23 스테이지 상태 (동연). 숲 사과·사과상자
+    // 사과나무 폭발과 연결할 때 Stage().AddApples(slot, 1) 처럼 부르면 된다
+    StageState& Stage() { return m_stage; }
+    // 방 안 전원에게 S2C_StageState (게임 시작 때, 값이 바뀔 때)
+    void SendStageState();
+
     // 대기 중 && 방장 && CanStart() 일 때만 true. 안 되면 이유를 로그로 남기고 false
     // (조건을 통과하면 11/17부터 StartGame()으로 게임을 시작한다)
     bool RequestStart(int sessionId);
@@ -88,6 +95,7 @@ private:
     unsigned int m_nextOrder = 0;
 
     PlayerMovement m_move;   // 게임 중 플레이어 위치 (11/18)
+    StageState     m_stage;  // 게임 중 스테이지 상태 (11/23)
 };
 
 // 방 1~8번 고정, 항상 로비에 표시
