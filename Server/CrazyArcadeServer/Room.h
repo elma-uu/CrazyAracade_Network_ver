@@ -113,6 +113,11 @@ public:
     // (입장·퇴장·접속 종료·맵 변경·게임 시작 때 부른다. 색·레디는 목록에 없으므로 부르지 않음)
     void BroadcastRoomListToLobby(int exceptId = -1);
 
+    // 방 기록(자리의 세션 ID)과 세션 기록(방 번호·자리·상태)이 서로 맞는지 검사.
+    // 어긋난 곳마다 "[check] ..." 로그를 남기고 false. Debug 빌드에서 패킷 처리·접속 종료 직후마다
+    // 불러서, 나간 사람이 방에 남는 것 같은 정리 누락을 생긴 순간에 찾는다.
+    bool CheckConsistency() const;
+
     Room&       Get(int roomId)       { return m_rooms[roomId - 1]; }   // roomId 1~8
     const Room& Get(int roomId) const { return m_rooms[roomId - 1]; }
 

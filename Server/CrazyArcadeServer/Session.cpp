@@ -118,6 +118,9 @@ bool SESSION::DoRecv()
 
             if (!ProcessPacket(packet_start))   // 잘못된 패킷 → 접속 종료
                 return false;
+#ifdef _DEBUG
+            g_roomManager.CheckConsistency();   // 패킷 처리 뒤 방·세션 기록이 맞는지 (Debug 빌드만)
+#endif
             packet_start += packet_size;
             remain_data  -= packet_size;
         }

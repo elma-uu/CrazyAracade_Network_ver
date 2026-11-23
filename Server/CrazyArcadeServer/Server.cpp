@@ -184,6 +184,10 @@ void Server::Disconnect(int id)
     // 4) closesocket 후 ST_FREE로 되돌려 다음 접속자가 쓰게 한다
     s.Reset();
     std::cout << "[" << id << "] disconnected" << std::endl;
+
+#ifdef _DEBUG
+    g_roomManager.CheckConsistency();   // 나간 사람이 어느 방에도 남지 않았는지 (Debug 빌드만)
+#endif
 }
 
 void Server::Shutdown()

@@ -326,6 +326,53 @@ int RoomManager::FindRoomOf(int sessionId) const
     return -1;
 }
 
+bool RoomManager::CheckConsistency() const
+{
+    bool ok = true;
+    auto fail = [&ok](int roomId, const char* what, int id) {
+        std::cout << "[check] room " << roomId << ": " << what << " (id " << id << ")" << std::endl;
+        ok = false;
+    };
+
+    bool inRoom[MAX_USER]{};
+    for (const Room& r : m_rooms) {
+        const int count = r.GetPlayerCount();
+        if ((count == 0) != (r.GetState() == RS_EMPTY))
+            fail(r.GetId(), "state does not match player count", count);
+        if (count == 0 && r.GetHostSlot() != -1)
+            fail(r.GetId(), "empty room still has a host slot", r.GetHostSlot());
+        if (count > 0 && (r.GetHostSlot() < 0 || r.GetHostSlot() >= MAX_ROOM_PLAYER
+                          || r.GetMember(r.GetHostSlot()) == -1))
+            fail(r.GetId(), "host slot is empty", r.GetHostSlot());
+
+        for (int slot = 0; slot < MAX_ROOM_PLAYER; ++slot) {
+            const int id = r.GetMember(slot);
+            if (id == -1) continue;
+            if (id < 0 || id >= MAX_USER) { fail(r.GetId(), "bad session id in a slot", id); continue; }
+            if (inRoom[id]) fail(r.GetId(), "session is in two places", id);
+            inRoom[id] = true;
+
+            const SESSION& s = g_sessions[id];
+            if (s.GetState() != ST_ROOM && s.GetState() != ST_INGAME)
+                fail(r.GetId(), "member session is not in a room state (left or disconnected?)", id);
+            else if (s.GetRoomId() != r.GetId() || s.GetSlot() != slot)
+                fail(r.GetId(), "member session points to another room/slot", id);
+            else if ((s.GetState() == ST_INGAME) != (r.GetState() == RS_PLAYING))
+                fail(r.GetId(), "member game state does not match room state", id);
+        }
+    }
+
+    for (int id = 0; id < MAX_USER; ++id) {
+        const SESSION& s = g_sessions[id];
+        const bool roomState = s.GetState() == ST_ROOM || s.GetState() == ST_INGAME;
+        if (roomState && !inRoom[id])
+            fail(s.GetRoomId(), "session thinks it is in a room but no room has it", id);
+        if (!roomState && s.GetRoomId() != -1)
+            fail(s.GetRoomId(), "session outside rooms still has a room id", id);
+    }
+    return ok;
+}
+
 void RoomManager::BroadcastRoomListToLobby(int exceptId)
 {
     S2C_RoomList list;
