@@ -247,3 +247,32 @@ bool GameWorld::PlaceBomb(const C2S_Attack& request, const BombOwner& owner, S2C
     board[owner.row][owner.col].obstacle = 9;
     return true;
 }
+
+/* 수정 - 2026-11-23 */
+bool GameWorld::TakeItem(ItemOwner& owner, S2C_ItemGet& packet)
+{
+    if (!owner.alive || owner.slot < 0 || owner.slot >= MAX_ROOM_PLAYER
+        || !IsWalkable(owner.row, owner.col)) return false;
+    Board& tile = board[owner.row][owner.col];
+    ITEM_TYPE item = static_cast<ITEM_TYPE>(tile.hiddenItem);
+    switch (item) {
+    case ITEM_POWER: owner.reach = std::min(owner.reach + 1, 255); break;
+    case ITEM_BOMB: owner.maxBombs = std::min(owner.maxBombs + 1, 255); break;
+    case ITEM_SPEED: owner.speed = std::min(owner.speed + 0.1f, 1.5f); break;
+    case ITEM_CLOCK:
+        if (mapId != MAP_CITY) return false;
+        owner.timeLeftMs += 5000;
+        break;
+    default: return false;
+    }
+    tile.hiddenItem = 0;
+    packet.size = sizeof(packet);
+    packet.type = S2C_ITEM_GET;
+    packet.x = static_cast<unsigned char>(owner.col);
+    packet.y = static_cast<unsigned char>(owner.row);
+    packet.item = item;
+    packet.bombReach = static_cast<unsigned char>(owner.reach);
+    packet.maxBomb = static_cast<unsigned char>(owner.maxBombs);
+    packet.speed = owner.speed;
+    return true;
+}

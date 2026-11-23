@@ -22,6 +22,11 @@ struct BombOwner {
     int reach = 1, maxBombs = 2, apples = 0;
 };
 
+struct ItemOwner : BombOwner {
+    float speed = 1.0f;
+    int timeLeftMs = 30000;
+};
+
 class GameWorld {
 public:
     static constexpr int MapTiles = MAP_TILES;
@@ -54,6 +59,17 @@ public:
                 [&room](const S2C_BlockBreak& packet) { room.Broadcast(&packet); });
         });
     }
+    /* 수정 - 2026-11-23 */
+    template<class Room>
+    bool PickUpItem(Room& room, int sessionId, ItemOwner& owner)
+    {
+        if (sessionId < 0 || room.FindSlot(sessionId) != owner.slot) return false;
+        S2C_ItemGet packet{};
+        if (!TakeItem(owner, packet)) return false;
+        packet.id = sessionId;
+        room.Broadcast(&packet);
+        return true;
+    }
     void StepBomb();
     void StepBomb(const std::function<void(const S2C_Explode&)>& broadcast,
         const std::function<void(const S2C_BlockBreak&)>& blockBreak = {});
@@ -68,6 +84,7 @@ public:
 
 private:
     bool PlaceBomb(const C2S_Attack& request, const BombOwner& owner, S2C_Attack* placed);
+    bool TakeItem(ItemOwner& owner, S2C_ItemGet& packet);
     int nextBombId = 0;
     FixedStepLoop clock;
     std::vector<ServerBomb> bombs;
