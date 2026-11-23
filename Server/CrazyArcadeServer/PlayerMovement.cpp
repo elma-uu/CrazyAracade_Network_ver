@@ -1,6 +1,6 @@
 #include "PlayerMovement.h"
 
-// 원본 이동 속도: 12ms마다 speed / 8 칸 → 속도 1.0이면 한 칸에 96ms
+// 12ms마다 speed/8칸
 static const float MOVE_PER_STEP = 1.0f / 8.0f;
 
 void PlayerMovement::Clear()
@@ -32,7 +32,7 @@ void PlayerMovement::SetInput(int slot, unsigned char dir)
     m_players[slot].inputDir = dir;
 }
 
-// target 쪽으로 step만큼 (넘어가지 않게)
+// 넘어가지 않게 다가가기
 static float Approach(float cur, float target, float step)
 {
     if (cur < target) {
@@ -46,7 +46,6 @@ static float Approach(float cur, float target, float step)
     return cur;
 }
 
-// 11/20 S2C_Move 만들기
 void PlayerMovement::MakeMovePacket(int slot, S2C_Move& out) const
 {
     const ServerPlayer& p = m_players[slot];
@@ -71,7 +70,7 @@ void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk,
 
         bool moving = (p.x != p.destX || p.y != p.destY);
 
-        // 멈춰 있을 때만 다음 칸을 정한다 (원본 HandlePlayerMovement와 같음)
+        // 멈춰 있을 때만 다음 칸을 정한다
         if (!moving) {
             if (p.inputDir == IN_NONE) continue;
 
@@ -85,7 +84,7 @@ void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk,
             else if (p.inputDir == IN_RIGHT) nx++;
 
             if (!canWalk(ny, nx)) {
-                // 막힌 칸 → 방향만 바뀜. 다른 사람 화면에서도 돌아보게 한 번만 알려 준다 (dest = 지금 칸)
+                // 막혔으면 방향만 바꾸고 한 번 알린다
                 if (turned) {
                     S2C_Move m;
                     MakeMovePacket(i, m);
@@ -97,8 +96,7 @@ void PlayerMovement::Step(const std::function<bool(int, int)>& canWalk,
             p.destX = nx;
             p.destY = ny;
 
-            // 새 칸으로 출발할 때만 보낸다 (12ms마다 좌표를 보내지 않음)
-            // 클라는 x,y → destX,destY를 speed로 알아서 보간한다
+            // 새 칸으로 출발할 때만 보낸다
             S2C_Move m;
             MakeMovePacket(i, m);
             onMove(m);

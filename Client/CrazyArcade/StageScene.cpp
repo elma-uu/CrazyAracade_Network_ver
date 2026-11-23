@@ -23,7 +23,7 @@ StageScene::StageScene()
             mPlayers[i] = std::make_unique<Player>(i, kKeyBindings[i], GameData::playerColor[i], mMap);
         return;
     }
-    // 온라인: 서버가 알려 준 참가자만, 자리 번호 그대로 (입력은 서버로 보내므로 키 설정은 쓰지 않음)
+    // 온라인은 서버가 알려 준 참가자만
     const GameClient::GameStartInfo& start = GameClient::GameStart();
     for (int i = 0; i < MaxPlayers; ++i)
         if (start.players[i].exist)
@@ -43,8 +43,7 @@ void StageScene::OnEnter()
         }
         return;
     }
-    // 온라인: 서버가 정한 시작 칸 (맵 네 모서리). 진짜 맵은 뒤이어 오는 S2C_MapInfo가 덮어쓰지만,
-    // 그 전까지 블록 위에 캐릭터가 그려지지 않게 시작 칸은 비워 둔다
+    // MapInfo가 오기 전까지 시작 칸은 비워 둔다
     const GameClient::GameStartInfo& start = GameClient::GameStart();
     for (int i = 0; i < MaxPlayers; ++i) {
         if (!mPlayers[i]) continue;
@@ -70,17 +69,17 @@ void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
 
 void StageScene::Update(float deltaTime)
 {
-    if (Input::GetKeyDown(VK_F3)) Player::ToggleFootDebug();   // [디버그] 발밑 중심점 표시
+    if (Input::GetKeyDown(VK_F3)) Player::ToggleFootDebug();   // 발밑 중심점 보기
 
     if (mOnline) {
-        // 서버와 끊기면 로그인 화면으로 (끊김 안내는 GameClient가 띄운다)
+        // 끊기면 로그인 화면으로
         if (!NetworkManager::IsConnected()) {
             SceneManager::ChangeScene(SceneType::Login);
             return;
         }
         UpdateOnlineInput();
 
-        // 11/21 서버가 보낸 이동(S2C_Move) 반영 → 목적 칸까지 보간. 나와 다른 사람 모두 같은 방식
+        // 서버가 보낸 이동 반영
         for (int i = 0; i < MaxPlayers; ++i) {
             if (!mPlayers[i]) continue;
             GameClient::MoveView m;
@@ -102,11 +101,10 @@ void StageScene::Update(float deltaTime)
     }
 }
 
-// 11/19 온라인 이동 입력: 방향키·WASD 둘 다 받고, 여러 개 누르면 마지막에 누른 방향.
-// 방향이 바뀔 때만 C2S_Input을 보낸다 (계속 보내지 않음)
+// 방향이 바뀔 때만 C2S_Input을 보낸다
 void StageScene::UpdateOnlineInput()
 {
-    // 키 번호: 위, 아래, 왼쪽, 오른쪽 순서 (INPUT_DIR 1~4와 같은 순서)
+    // 위, 아래, 왼쪽, 오른쪽
     static const int keys1[4] = { VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT };
     static const int keys2[4] = { 'W', 'S', 'A', 'D' };
 
@@ -231,7 +229,7 @@ void StageScene::Render(HDC hdc)
     RenderMap(hdc);
     if (mOnline) {
         RenderOnlineNames(hdc);
-        return;   // 스테이지 HUD(사과·시간·하트)는 S2C_StageState를 붙인 뒤에
+        return;   // TODO: 스테이지 HUD
     }
     RenderHud(hdc);
     if (IsGameOver()) RenderResult(hdc);
@@ -239,7 +237,7 @@ void StageScene::Render(HDC hdc)
 
 void StageScene::RenderOnlineNames(HDC hdc) const
 {
-    // 누가 누구인지 알 수 있게 캐릭터 머리 위에 닉네임, 내 캐릭터는 노란색
+    // 머리 위 닉네임, 나는 노란색
     const GameClient::GameStartInfo& start = GameClient::GameStart();
     for (int i = 0; i < MaxPlayers; ++i) {
         if (!mPlayers[i]) continue;
@@ -252,7 +250,7 @@ void StageScene::RenderOnlineNames(HDC hdc) const
 void StageScene::RenderCommonHud(HDC hdc) const
 {
     Gfx::DrawOpaque(hdc, BitmapID::GameUI, 0, 0, 1450, 900, 0, 0, 1040, 780);
-    if (mOnline) return;   // 2인용 초상화·아이템 칸은 한 컴퓨터 모드에서만
+    if (mOnline) return;   // 2인 모드에서만
 
     const int portraitX[PlayerCount] = { 175, 1195 };
     const int iconX[PlayerCount] = { 50, 1200 };

@@ -1,8 +1,5 @@
-// 11/23 S2C_StageState 서버 (사과·사과상자) 확인 (김동연)
-// Room::StartGame·Room::Update가 아직 없어서, StageState를 서버 이동(PlayerMovement)·숲 맵(GameWorld)과
-// 직접 붙여서 확인한다.
-//
-// 빌드 (저장소 루트, x64 Native Tools Command Prompt):
+// 사과·사과상자 서버 처리 확인
+// 빌드:
 //   cl /nologo /utf-8 /EHsc /std:c++17 /I Common Tests\StageStateCases.cpp Server\CrazyArcadeServer\StageState.cpp Server\CrazyArcadeServer\PlayerMovement.cpp Server\GameWorld.cpp
 //   StageStateCases.exe
 #include "../Server/CrazyArcadeServer/StageState.h"
@@ -17,7 +14,7 @@ static void check(const char* id, bool passed)
     if (!passed) failed++;
 }
 
-// 이동 테스트용: 맵 전체가 비어 있음 (막힌 칸 없음)
+// 막힌 칸 없는 맵
 static bool CanWalkAll(int row, int col)
 {
     if (row < 0 || row >= MAP_TILES || col < 0 || col >= MAP_TILES) return false;
@@ -25,7 +22,7 @@ static bool CanWalkAll(int row, int col)
 }
 static void IgnoreMove(const S2C_Move&) {}
 
-// 서버 이동을 12ms씩 steps번 돌리면서, 매번 Room::StepMovement처럼 사과상자 넣기를 검사한다
+// Room::StepMovement처럼 이동하고 사과상자 검사
 static void Run(PlayerMovement& move, StageState& stage, int steps)
 {
     for (int i = 0; i < steps; ++i) {
@@ -72,12 +69,12 @@ int main()
     ice.AddApples(0, 2);
     check("S4 ice: AddApples ignored", ice.Get(0).apple == 0);
 
-    // S5 상자 옆이 아니면 안 넣음 (자리 0 상자 = (0,1))
+    // S5 상자 옆이 아니면 안 넣음
     stage.ClearChanged();
     stage.DepositApples(0, 2, 1);
     check("S5 not next to box (2,1): keep apples", stage.Get(0).apple == 2 && stage.Get(0).appleBox == 0 && !stage.IsChanged());
 
-    // S6 남의 상자 옆이면 안 넣음 (자리 1 상자 = (19,1))
+    // S6 남의 상자 옆이면 안 넣음
     stage.DepositApples(0, 18, 1);
     check("S6 next to other's box: keep apples", stage.Get(0).apple == 2 && stage.Get(0).appleBox == 0);
 
@@ -100,7 +97,7 @@ int main()
           pkt.players[1].id == 11 && pkt.players[1].apple == 3 && pkt.players[1].alive &&
           pkt.players[2].id == -1 && pkt.players[3].id == -1);
 
-    // S11 서버 이동과 함께: (0,0)에서 오른쪽 3칸 → 사과 2개 받음 → 왼쪽으로 돌아오면 상자 옆 (0,0)에서 넣음
+    // S11 사과를 들고 멀리 갔다가 상자 옆으로 돌아오면 넣어진다
     PlayerMovement move;
     StageState s2;
     s2.Init(MAP_FOREST);

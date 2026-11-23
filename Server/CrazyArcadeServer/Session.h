@@ -36,7 +36,7 @@ public:
     void SendRoomEnterResult(bool success, int roomId, int slot, unsigned char failReason);
     void SendRoomList();   // 로비 진입·새로고침·방 상태 변경 시
 
-    // S2C_GameStart를 받은 뒤: 방(ST_ROOM) → 게임 중(ST_INGAME). Room::SendGameStart에서 호출
+    // ST_ROOM에서 ST_INGAME으로
     void EnterGame();
 
     bool InUse() const { return m_state != ST_FREE; }
@@ -60,7 +60,7 @@ private:
     void OnSelectColor(const C2S_SelectColor* p);
     void OnReady(const C2S_Ready* p);             // 레디 토글
     void OnStartGame(const C2S_StartGame* p);     // 방장만
-    void OnInput(const C2S_Input* p);             // 게임 중 방향키 (11/19)
+    void OnInput(const C2S_Input* p);             // 게임 중 방향키
 
     int           m_id = -1;
     SOCKET        m_socket = INVALID_SOCKET;

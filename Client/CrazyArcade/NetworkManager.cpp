@@ -24,8 +24,7 @@ namespace {
         }
     }
 
-    // S2C 패킷은 모두 고정 크기 struct이므로 type별 크기가 정확히 맞아야 한다.
-    // 검사하지 않으면 헤더만 온 패킷을 struct로 읽을 때 버퍼 밖을 읽고 쓰게 된다. 0 = 모르는 type
+    // 종류별 패킷 크기, 0이면 모르는 종류
     int ExpectedSize(unsigned char type)
     {
         switch (type) {
@@ -81,19 +80,18 @@ bool NetworkManager::Connect(const char* ip, unsigned short port)
         return false;
     }
 
-    // 계획서 3.7: 블로킹 connect로 접속이 끝날 때까지 기다린 뒤 논블로킹으로 바꾼다.
-    // (서버가 없는 IP면 Windows가 포기할 때까지 약 20초 기다리므로 그동안 창이 멈출 수 있다)
+    // 블로킹으로 접속한다
     if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
         sLastError = ConnectErrorText(WSAGetLastError());
         closesocket(sock);
         return false;
     }
 
-    // 접속된 뒤부터는 논블로킹: recv/send가 기다리느라 게임 프레임이 멈추지 않게
+    // 이후로는 논블로킹
     u_long noblock = 1;
     ioctlsocket(sock, FIONBIO, &noblock);
 
-    // 키 입력 같은 작은 패킷을 모아 보내지 않도록 Nagle 끄기
+    // Nagle 끄기
     BOOL nodelay = TRUE;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&nodelay), sizeof(nodelay));
 
@@ -126,7 +124,7 @@ void NetworkManager::Poll()
 {
     if (!IsConnected()) return;
 
-    // 실패한 쪽(DoRecv/FlushSend)이 sLastError에 이유를 적어 둔다
+    // 실패 이유는 sLastError에 남는다
     if (!DoRecv() || !FlushSend()) {
         Disconnect();
         sConnectionLost = true;
@@ -144,15 +142,13 @@ bool NetworkManager::ConsumeConnectionLost()
 void NetworkManager::SendPacket(const void* packet)
 {
     if (!IsConnected()) return;
-    // 바로 send하지 않고 큐에 쌓아 둔다: 논블로킹 send는 일부만 보내거나 WOULDBLOCK을 줄 수 있다
+    // 큐에 쌓았다가 FlushSend에서 보낸다
     auto p = static_cast<const unsigned char*>(packet);
     int size = reinterpret_cast<const PACKET_HEADER*>(p)->size;
     sSendQueue.insert(sSendQueue.end(), p, p + size);
 }
 
-// 서버 SESSION::DoRecv와 같은 재조립 코드.
-// TCP는 보낸 단위 그대로 오지 않으므로(붙어서 오거나 잘려서 옴) 버퍼에 모아 두었다가
-// 맨 앞 헤더의 size만큼 다 모였을 때만 패킷 하나로 처리한다.
+// 받은 데이터를 모아 패킷 단위로 자른다
 bool NetworkManager::DoRecv()
 {
     while (IsConnected()) {
@@ -161,7 +157,7 @@ bool NetworkManager::DoRecv()
         int space = RECV_BUF_SIZE - sPrevRemain;
         int ret = recv(sSocket, buf, space, 0);
 
-        if (ret == SOCKET_ERROR) {   // WOULDBLOCK이면 지금 받을 게 없을 뿐 (정상)
+        if (ret == SOCKET_ERROR) {   // WOULDBLOCK은 정상
             int err = WSAGetLastError();
             if (err == WSAEWOULDBLOCK) return true;
             sLastError = (err == WSAECONNRESET)
@@ -177,16 +173,16 @@ bool NetworkManager::DoRecv()
         unsigned char* packetStart = sRecvBuf;
         int remain = sPrevRemain + ret;
 
-        // 헤더(3바이트)조차 잘려서 올 수 있으므로 헤더가 다 왔는지부터 확인
+        // 헤더가 다 왔는지부터 본다
         while (remain >= static_cast<int>(sizeof(PACKET_HEADER))) {
             int packetSize = reinterpret_cast<PACKET_HEADER*>(packetStart)->size;
 
-            // 말이 안 되는 size → 잘못된 패킷, 접속 종료
+            // size가 이상하면 끊는다
             if (packetSize < static_cast<int>(sizeof(PACKET_HEADER)) || packetSize > MAX_PACKET_SIZE) {
                 sLastError = L"서버에서 잘못된 패킷이 왔습니다 (size=" + std::to_wstring(packetSize) + L")";
                 return false;
             }
-            // 아직 덜 옴 → 다음 recv에서 이어 붙임
+            // 아직 덜 왔음
             if (packetSize > remain)
                 break;
 
@@ -212,16 +208,16 @@ bool NetworkManager::FlushSend()
 
         if (ret == SOCKET_ERROR) {
             int err = WSAGetLastError();
-            if (err != WSAEWOULDBLOCK) {   // 진짜 에러 → 접속 종료
+            if (err != WSAEWOULDBLOCK) {   // 진짜 에러
                 sLastError = L"서버로 보내는 중 오류가 났습니다 (오류 " + std::to_wstring(err) + L")";
                 return false;
             }
-            break;              // 지금은 못 보냄 → 다음 프레임에 이어서
+            break;              // 다음 프레임에 다시
         }
         // 실제로 보낸 만큼만 큐에서 지운다
         sSendQueue.erase(sSendQueue.begin(), sSendQueue.begin() + ret);
     }
-    // 서버가 오랫동안 받지 못해 큐가 64KB를 넘으면 끊긴 것으로 본다
+    // 64KB 넘게 쌓이면 끊긴 걸로 본다
     if (sSendQueue.size() > MAX_SEND_QUEUE) {
         sLastError = L"서버가 응답하지 않습니다";
         return false;
@@ -243,7 +239,7 @@ void NetworkManager::SendLogin(const std::string& nameUtf8)
     C2S_Login p = {};
     p.size = sizeof(p);
     p.type = C2S_LOGIN;
-    // 나머지는 0으로 채워져 있으므로 끝 '\0'이 항상 남는다
+    // 끝 '\0' 자리는 남긴다
     memcpy(p.name, nameUtf8.data(), std::min(nameUtf8.size(), sizeof(p.name) - 1));
     SendPacket(&p);
 }
@@ -322,7 +318,7 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
 
     int expected = ExpectedSize(header->type);
-    if (expected == 0) {   // 모르는 type: 버전이 다른 서버일 수 있으니 끊지 않고 무시
+    if (expected == 0) {   // 모르는 패킷은 무시
         char msg[64];
         sprintf_s(msg, "[net] 모르는 패킷 type=%d 무시\n", header->type);
         OutputDebugStringA(msg);

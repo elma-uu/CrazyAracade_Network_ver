@@ -178,10 +178,10 @@ void Player::Slide(bool horizontal, int ahead, float& side, float distance)
     side = MoveToward(side, static_cast<float>(footSide), distance * kSlideSpeed);
 }
 
-// 11/21 서버가 새 칸으로 출발했다고 알려 줌
+// 서버가 알려 준 이동
 void Player::SetNetMove(int x, int y, int destX, int destY, int dir, float speed)
 {
-    // 출발 칸으로 맞춰 놓고 시작 (보간하다 조금 어긋났어도 여기서 서버 위치로 돌아온다)
+    // 출발 칸에서 다시 시작
     mPx = (float)x;
     mPy = (float)y;
     mNetDestX = (float)destX;
@@ -194,8 +194,7 @@ void Player::SetNetMove(int x, int y, int destX, int destY, int dir, float speed
     else if (dir == IN_RIGHT) mFacing = Dir::Right;
 }
 
-// 매 프레임: 목적 칸으로 서버와 같은 빠르기로 다가간다
-// 서버는 12ms마다 speed/8 칸 → 1초에 speed * 1000 / 96 칸
+// 서버와 같은 빠르기로 목적 칸까지 간다
 void Player::UpdateNetMove(float deltaTime)
 {
     if (mHitTimerMs > 0) mHitTimerMs -= (int)(deltaTime * 1000);
@@ -206,7 +205,7 @@ void Player::UpdateNetMove(float deltaTime)
     mPx = MoveToward(mPx, mNetDestX, step);
     mPy = MoveToward(mPy, mNetDestY, step);
 
-    // 걷기 그림: 로컬 이동처럼 12ms에 한 칸씩 넘김
+    // 걷기 그림 넘기기
     mNetAnimMs += deltaTime * 1000;
     while (mNetAnimMs >= Config::FixedStepMs) {
         mNetAnimMs -= Config::FixedStepMs;

@@ -86,7 +86,7 @@ void Ui::DrawKeyValue(HDC c, const wchar_t* key, const std::wstring& value,
 }
 
 namespace {
-    // 채팅 칸 (lobby_bg / room_bg 기준)
+    // 채팅 칸 좌표
     constexpr int kChatX = 30, kChatRight = 422;
     constexpr int kChatTop = 414, kChatLineH = 19, kChatRows = 5;
     const RECT kScrollUp = { 425, 412, 444, 429 };
@@ -126,7 +126,7 @@ int Ui::ChatView::ThumbY(int visualCount) const
 void Ui::ChatView::Update(const std::vector<GameClient::ChatLine>& lines, POINT p, bool inClient)
 {
     const int count = static_cast<int>(Wrap(lines).size());
-    // 위로 올려 보고 있을 때 새 줄이 오면 보던 줄이 그대로 보이게
+    // 올려 보는 중이면 위치 유지
     if (mScroll > 0 && count > mLastCount) mScroll += count - mLastCount;
     mLastCount = count;
     const int maxScroll = MaxScroll(count);
@@ -148,7 +148,7 @@ void Ui::ChatView::Update(const std::vector<GameClient::ChatLine>& lines, POINT 
     else if (PtInRect(&kScrollDown, p)) mScroll = std::max(mScroll - 1, 0);
     else if (PtInRect(&thumb, p)) { mDragging = true; mDragOffset = p.y - thumbY; }
     else if (PtInRect(&kTrack, p)) {
-        // 손잡이 위 빈 곳 = 한 화면 위로, 아래 = 한 화면 아래로
+        // 빈 곳 클릭은 한 화면씩
         if (p.y < thumbY) mScroll = std::min(mScroll + kChatRows, maxScroll);
         else mScroll = std::max(mScroll - kChatRows, 0);
     }
@@ -167,7 +167,7 @@ void Ui::ChatView::Draw(HDC c, const std::vector<GameClient::ChatLine>& lines, c
         const VisualLine& v = visual[first + k];
         Gfx::DrawPixelText(c, { kChatX, y, kChatRight, y + kChatLineH }, v.text, v.color, Gfx::Align::Left);
     }
-    // 스크롤 손잡이 (lobby_tiles.bmp 202,0)
+    // 스크롤 손잡이
     Gfx::DrawOpaque(c, BitmapID::LobbyTiles, kThumbX, ThumbY(count), kThumbSize, kThumbSize, 202, 0, kThumbSize, kThumbSize);
 }
 

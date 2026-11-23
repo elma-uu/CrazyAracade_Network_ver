@@ -1,8 +1,7 @@
 #pragma once
 #include "Scene.h"
 
-// 로그인: 닉네임과 서버 IP를 입력하고 서버에 접속한다.
-// Tab/클릭 = 입력칸 이동, Enter = 확인, ESC = 타이틀로, F9 = 기존 한 컴퓨터 2인 모드
+// 로그인 화면
 class LoginScene : public Scene {
 public:
     void OnEnter() override;
@@ -18,7 +17,7 @@ private:
     void TypeChar(wchar_t ch);
     void Submit();
     void ConnectToServer();
-    // 로그인 요청 후: 성공/실패/시간 초과/끊김 처리
+    // 로그인 응답 기다리기
     void UpdateLoginWait();
 
     std::wstring mName;
@@ -26,7 +25,7 @@ private:
     int mFocus = FieldName;
     std::wstring mMessage;           // 입력 오류·접속 결과 안내
     COLORREF mMessageColor = RGB(255, 120, 120);
-    // Enter 직후 한 프레임은 "접속 중..."을 그리고, 다음 프레임에 접속한다 (블로킹 connect 동안 화면이 멈추므로)
+    // 접속 중 문구를 먼저 그리고 다음 프레임에 접속
     bool mConnectPending = false;
-    bool mConnected = false;   // 접속 성공, 로그인 요청 보냄 (응답 대기 또는 성공)
+    bool mConnected = false;   // 접속해서 로그인 요청 보냄
 };

@@ -45,8 +45,7 @@ public:
 
     static void ToggleFootDebug() { sShowFootDebug = !sShowFootDebug; }
 
-    // ---- 11/21 온라인: 서버(S2C_Move)가 알려 준 목적 칸까지 보간 ----
-    // x,y = 출발 칸, destX,destY = 목적 칸, dir = INPUT_DIR (1 위 2 아래 3 왼 4 오)
+    // 온라인 이동
     void SetNetMove(int x, int y, int destX, int destY, int dir, float speed);
     void UpdateNetMove(float deltaTime);
 
@@ -79,7 +78,7 @@ private:
     int mHitTimerMs = 0;
     int mPickedItems[static_cast<int>(ItemType::Count)] = {};
 
-    // 온라인 보간 (11/21)
+    // 온라인 보간
     float mNetDestX = 0, mNetDestY = 0;
     float mNetAnimMs = 0;   // 걷기 그림 넘기는 시간
 };

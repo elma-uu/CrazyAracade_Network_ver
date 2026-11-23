@@ -1,9 +1,5 @@
-// 11/22 이동 동기화 확인 (김동연)
-// 서버 PlayerMovement를 12ms씩 돌리고, 나오는 S2C_Move를 클라 Player::UpdateNetMove와
-// 같은 공식으로 따라가 봐서 서버·클라가 같은 칸에 도착하는지 본다.
-// (Room::StartGame·Room::Update가 아직 없어서 서버+클라 실제 접속 테스트 대신 이걸로 확인)
-//
-// 빌드 (저장소 루트, x64 Native Tools Command Prompt):
+// 서버 이동과 클라 보간이 같은 칸에 도착하는지 확인
+// 빌드:
 //   cl /nologo /utf-8 /EHsc /std:c++17 /I Common Tests\MovementCases.cpp Server\CrazyArcadeServer\PlayerMovement.cpp Server\GameWorld.cpp
 //   MovementCases.exe
 #include "../Server/CrazyArcadeServer/PlayerMovement.h"
@@ -33,7 +29,7 @@ static void ClearMap()
             blocked[r][c] = false;
 }
 
-// 클라 Player::SetNetMove / UpdateNetMove와 같은 계산 (Player는 GDI를 써서 여기서 못 씀)
+// 클라 보간과 같은 계산
 struct ClientPlayer {
     float px = 0, py = 0, destX = 0, destY = 0, speed = 1.0f;
     int dir = IN_DOWN;
@@ -158,7 +154,7 @@ int main()
         check("MOVE-08", sent.empty() && mv.Get(0).inputDir == IN_NONE && mv.Get(2).sessionId == -1);
     }
 
-    // MOVE-09 진짜 숲 맵(규동 GameWorld)에서 오른쪽으로 계속: 장애물 칸에는 절대 안 들어감
+    // MOVE-09 숲 맵에서 오른쪽으로 계속 가도 장애물 칸에는 안 들어감
     {
         GameWorld world;
         world.InitBoard(MAP_FOREST);
@@ -176,7 +172,6 @@ int main()
     }
 
     // SYNC-01 서버 12ms 스텝 / 클라 16ms 프레임으로 돌려도 클라가 서버와 같은 칸에 도착
-    //         (오른쪽 3칸 → 아래 2칸 → 손 뗌)
     // SYNC-02 움직이는 동안 클라와 서버 위치 차이는 한 칸 미만
     {
         ClearMap();

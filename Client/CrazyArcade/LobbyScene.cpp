@@ -9,7 +9,7 @@
 using namespace Ui;
 
 namespace {
-    // 안내 문구도 채팅 칸에 쌓는다 (전체 채팅)
+    // 안내 문구도 채팅 칸에 쌓는다
     void Log(const std::wstring& text, COLORREF color)
     {
         GameClient::AddChat(GameClient::ChatChannel::Lobby, text, color);
@@ -53,7 +53,7 @@ void LobbyScene::Update(float)
         SceneManager::ChangeScene(SceneType::Title);
         return;
     }
-    // 서버와 끊기면 로그인 화면으로 (끊김 안내는 GameClient가 띄운다)
+    // 끊기면 로그인 화면으로
     if (!GameClient::IsLobbyPreview() && !NetworkManager::IsConnected()) {
         SceneManager::ChangeScene(SceneType::Login);
         return;
@@ -62,16 +62,16 @@ void LobbyScene::Update(float)
     UpdateJoin();
     if (GameClient::GetJoinState() == GameClient::JoinState::Joined) return;
 
-    // 화면(1500x900) 좌표 → 캔버스(800x600) 좌표
+    // 캔버스 좌표로 변환
     POINT p = ToCanvas(Input::GetMousePosition());
 
-    // 채팅 입력 (Enter는 입력 중이면 보내기, 아니면 입장)
+    // 채팅 입력
     std::wstring chat;
     if (mInput.Update(p, Input::IsMouseInClient(), chat)) GameClient::SendChat(GameClient::ChatChannel::Lobby, chat);
-    // (F5는 에코 테스트 접속 키라 새로고침에 쓰지 않는다)
+    // F5는 에코 테스트 키라 새로고침에 안 쓴다
     if (Input::GetKeyDown(VK_RETURN) && !mInput.Focused()) TryEnter();
 
-    // 마우스가 올라간 방 = 노란 테두리
+    // 마우스 올린 방
     mHover = -1;
     if (Input::IsMouseInClient()) {
         for (int i = 0; i < MAX_ROOM; ++i) {
@@ -98,7 +98,7 @@ RECT LobbyScene::RoomRect(int index)
 {
     const int row = index / 4, col = index % 4;
     const int top = TileTop + RowStep * row;
-    // 칸 그림 + 이름 칸 + 상태 칸 전체
+    // 칸 전체 영역
     return { SlotL[row][col] - 1, top, SlotR[row][col] + 2, StatusTop + RowStep * row + 16 };
 }
 
@@ -119,7 +119,7 @@ void LobbyScene::Refresh()
 
 void LobbyScene::QuickEnter()
 {
-    // 사람이 남아 있는 대기 방 중 사람이 가장 많은 방으로 바로 들어간다. 없으면 빈 방
+    // 사람 많은 대기 방부터, 없으면 빈 방
     int pick = -1;
     for (int i = 0; i < MAX_ROOM; ++i) {
         const GameClient::RoomView& r = GameClient::Room(i);
@@ -191,7 +191,7 @@ void LobbyScene::DrawRooms(HDC c) const
         const bool empty = IsEmpty(r);
         const bool canEnter = CanEnter(r);
 
-        // 들어갈 수 있는 방 = 열린 칸, 게임 중이거나 꽉 찬 방 = X 칸
+        // 못 들어가는 방은 X 칸
         Gfx::DrawOpaque(c, BitmapID::LobbyTiles, tileX, tileY, 101, 101, canEnter ? 0 : 101, 0, 101, 101);
         if (empty) {
             DrawSprite(c, RandomIcon, tileX + 26, tileY + 20);
@@ -217,7 +217,7 @@ void LobbyScene::DrawRooms(HDC c) const
         std::wstring count = std::to_wstring(r.players) + L"/" + std::to_wstring(MAX_ROOM_PLAYER);
         DrawDigits(c, DigitStyle::Green, count, barX + barW - 3 - DigitsWidth(DigitStyle::Green, count), statusY + 3);
 
-        // 마우스가 올라간 방은 노란 테두리, 골라 둔 방은 (마우스가 다른 곳에 있을 때) 옅은 하늘색 테두리
+        // 마우스 올린 방은 노랑, 고른 방은 하늘색
         if (i == mHover)
             Gfx::DrawRoundFrame(c, Box(L - 3, tileY - 2, 104, 145), 8, HoverFrame, 2);
         else if (i == mSelected)
@@ -283,7 +283,7 @@ void LobbyScene::DrawSelectedRoom(HDC c) const
 
 void LobbyScene::DrawButtons(HDC c) const
 {
-    // 버튼 글씨는 원래 버튼 글씨 크기·테두리 색에 맞춘다
+    // 원래 버튼 글씨에 맞춘다
     Gfx::DrawPixelText(c, Box(647, 429, 122, 45), L"빠른 입장", White, Gfx::Align::Center, 18, RGB(0x0b, 0x3f, 0x86), 2);
     Gfx::DrawPixelText(c, Box(514, 495, 188, 53), L"입     장", White, Gfx::Align::Center, 24, RGB(0xc3, 0x4a, 0x00), 2);
 }

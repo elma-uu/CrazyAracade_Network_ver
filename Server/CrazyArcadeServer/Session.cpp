@@ -275,11 +275,11 @@ void SESSION::SendLoginResult(bool success)
     SendPacket(&p);
 }
 
-// 로비 방 목록 요청 (클라가 로비에 들어올 때·새로고침 버튼) → S2C_RoomList
+// 로비 방 목록 요청
 void SESSION::OnRoomList(const C2S_RoomList*)
 {
     if (m_state != ST_LOBBY) {
-        // 방 안·게임 중에는 로비 화면이 없으므로 무시
+        // 로비가 아니면 무시
         std::cout << "[" << m_id << "] room list ignored: not in lobby" << std::endl;
         return;
     }
@@ -357,8 +357,7 @@ void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
     std::cout << "[" << m_id << "] left room " << roomId << " -> lobby" << std::endl;
 }
 
-// 방장의 맵 선택. 방장이 아니거나 잘못된 맵이면 Room::SelectMap이 거부하고 로그만 남긴다.
-// 바뀌면 방 안 전원에게 S2C_RoomInfo (맵 + 풀린 레디). 로비 방 목록 갱신은 11/18
+// 방장의 맵 선택
 void SESSION::OnSelectMap(const C2S_SelectMap* p)
 {
     if (m_state != ST_ROOM) {
@@ -371,8 +370,7 @@ void SESSION::OnSelectMap(const C2S_SelectMap* p)
         room.SendRoomInfo();
 }
 
-// 색상 선택 (누구나). 바뀌면 방 안 전원에게 S2C_RoomInfo.
-// 거부되면(범위 밖·다른 사람이 쓰는 색) 지금 방 상태를 다시 보내 요청한 클라 화면을 서버와 맞춘다
+// 거부되면 요청한 사람에게만 방 상태를 다시 보낸다
 void SESSION::OnSelectColor(const C2S_SelectColor* p)
 {
     if (m_state != ST_ROOM) {
@@ -389,8 +387,7 @@ void SESSION::OnSelectColor(const C2S_SelectColor* p)
     }
 }
 
-// 레디 켜기/끄기 (방장 포함 누구나). 게임 시작은 하지 않는다 → 방장의 C2S_StartGame에서
-// 바뀌면 방 안 전원에게 S2C_RoomInfo
+// 레디 켜기/끄기
 void SESSION::OnReady(const C2S_Ready* p)
 {
     if (m_state != ST_ROOM) {
@@ -402,7 +399,7 @@ void SESSION::OnReady(const C2S_Ready* p)
         std::cout << "[" << m_id << "] ready ignored: room " << m_roomId << " not waiting" << std::endl;
         return;
     }
-    bool ready = p->ready;   // bool 바이트가 0/1이 아니어도 true/false로 정리
+    bool ready = p->ready;   // 0/1로 정리
     if (room.IsReady(m_slot) == ready)
         return;              // 바뀐 것 없음
     room.SetReady(m_slot, ready);
@@ -421,8 +418,7 @@ void SESSION::OnStartGame(const C2S_StartGame*)
     g_roomManager.Get(m_roomId).RequestStart(m_id);
 }
 
-// 11/19 게임 중 방향키. 키를 누르거나 뗄 때만 온다.
-// 실제로 움직이는 건 12ms마다 Room::StepMovement에서
+// 게임 중 방향키 입력
 void SESSION::OnInput(const C2S_Input* p)
 {
     if (m_state != ST_INGAME) {

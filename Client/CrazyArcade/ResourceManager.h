@@ -51,13 +51,13 @@ enum class BitmapID {
     ItemBombCount,
     ItemSpeed,
     // 로비
-    LobbyBg,        // 800x600 배경 (글자는 코드로 그림)
-    LobbyTiles,     // 열린 칸 / X 칸 (각 101x101)
-    LobbyMaps,      // 숲·도시·얼음 아이콘 64px(y=0) / 58px(y=64) / 44px(y=122)
-    LobbySprites,   // ? 아이콘·왕관·숫자. 32비트 알파(미리 곱함) → Gfx::DrawAlpha로 그린다
+    LobbyBg,        // 배경
+    LobbyTiles,     // 열린 칸, X 칸
+    LobbyMaps,      // 맵 아이콘
+    LobbySprites,   // 아이콘, 숫자 (알파)
     // 대기방
-    RoomBg,         // 800x600 배경 (위 줄 4칸 열림, 맵 선택 칸 3개)
-    RoomSprites,    // 배찌 7색(86x86) + 체크 표시. 32비트 알파
+    RoomBg,         // 배경
+    RoomSprites,    // 배찌, 체크 (알파)
 
     Count
 };
