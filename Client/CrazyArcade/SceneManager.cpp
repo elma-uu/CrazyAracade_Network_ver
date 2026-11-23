@@ -13,6 +13,7 @@ bool SceneManager::sHasPending = false;
 
 void SceneManager::ChangeScene(SceneType type)
 {
+    if (sHasPending && sPending == type) return;
     pendingMap.reset();
     sPending = type;
     sHasPending = true;
@@ -82,4 +83,27 @@ void SceneManager::Release()
     if (sActive) sActive->OnExit();
     sActive.reset();
     sHasPending = false;
+}
+
+/* 수정 - 2026-11-18 */
+bool SceneManager::OnAttack(const S2C_Attack& packet)
+{
+    // 예약된 스테이지 생성과 맵 적용을 끝낸 뒤 설치 정보를 적용한다.
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnAttack(packet);
+}
+
+bool SceneManager::OnExplode(const S2C_Explode& packet)
+{
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnExplode(packet);
+}
+
+bool SceneManager::OnBlockBreak(const S2C_BlockBreak& packet)
+{
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnBlockBreak(packet);
 }

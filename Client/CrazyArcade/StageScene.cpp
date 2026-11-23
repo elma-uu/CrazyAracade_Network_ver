@@ -56,6 +56,7 @@ void StageScene::OnEnter()
 /* 수정 - 2026-11-11 */
 void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
 {
+    mNetworkBombs.clear();
     static_assert(TileMap::Size == MAP_TILES);
     for (int row = 0; row < MAP_TILES; ++row) {
         for (int col = 0; col < MAP_TILES; ++col) {
@@ -69,6 +70,11 @@ void StageScene::ApplyMapInfo(const S2C_MapInfo& packet)
 
 void StageScene::Update(float deltaTime)
 {
+    for (auto& bomb : mNetworkBombs)
+        if (bomb.exploding) bomb.remaining -= deltaTime;
+    mNetworkBombs.erase(std::remove_if(mNetworkBombs.begin(), mNetworkBombs.end(),
+        [](const NetworkBomb& bomb) { return bomb.exploding && bomb.remaining <= 0; }),
+        mNetworkBombs.end());
     if (Input::GetKeyDown(VK_F3)) Player::ToggleFootDebug();   // 발밑 중심점 보기
 
     if (mOnline) {
@@ -226,6 +232,30 @@ void StageScene::Render(HDC hdc)
     RenderCommonHud(hdc);
     RenderBackground(hdc);
     for (const auto& bomb : mBombs) bomb->Render(hdc);
+    /* 수정 - 2026-11-18 */
+    int frame = static_cast<int>((GetTickCount64() / 50) % 4);
+    for (const auto& bomb : mNetworkBombs) {
+        POINT center = TileMap::TileCenter(bomb.y, bomb.x);
+        if (!bomb.exploding) {
+            Gfx::Draw(hdc, BitmapID::BombSet,
+                center.x - Config::TileHalf, center.y - Config::TileHalf,
+                Config::TileSize, Config::TileSize, frame * 56, 0, 54, 54);
+            continue;
+        }
+        // 11/20: 원본 Bomb::Render의 물줄기 이미지 규격을 사용한다.
+        int flameFrame = static_cast<int>(bomb.remaining * 1000 / 50) % 3;
+        auto drawFlame = [&](BitmapID image, int row, int col) {
+            POINT pos = TileMap::TileCenter(row, col);
+            Gfx::Draw(hdc, image, pos.x - Config::TileHalf, pos.y - Config::TileHalf,
+                Config::TileSize, Config::TileSize, flameFrame * 52, 0, 52, 52);
+        };
+        drawFlame(BitmapID::BombCenter, bomb.y, bomb.x);
+        for (int i = 1; i <= bomb.up; ++i) drawFlame(BitmapID::BombUp, bomb.y - i, bomb.x);
+        for (int i = 1; i <= bomb.down; ++i) drawFlame(BitmapID::BombDown, bomb.y + i, bomb.x);
+        for (int i = 1; i <= bomb.left; ++i) drawFlame(BitmapID::BombLeft, bomb.y, bomb.x - i);
+        for (int i = 1; i <= bomb.right; ++i) drawFlame(BitmapID::BombRight, bomb.y, bomb.x + i);
+    }
+
     RenderMap(hdc);
     if (mOnline) {
         RenderOnlineNames(hdc);
@@ -281,4 +311,50 @@ void StageScene::RenderResult(HDC hdc) const
         Gfx::Draw(hdc, BitmapID::GameEnd, bannerX[i], 400, 348, 65, 0, srcY, 348, 65);
     }
     Gfx::DrawOutlinedText(hdc, 500, 600, L"다시 시작하려면 R을 누르시오 .");
+}
+
+/* 수정 - 2026-11-18 */
+bool StageScene::OnAttack(const S2C_Attack& packet)
+{
+    if (packet.size != sizeof(packet) || packet.type != S2C_ATTACK
+        || packet.bombId < 0 || packet.ownerId < 0 || packet.reach == 0
+        || !TileMap::InBounds(packet.y, packet.x)) return false;
+    for (const auto& bomb : mNetworkBombs)
+        if (bomb.bombId == packet.bombId) return false;
+    mNetworkBombs.emplace_back(packet);
+    mMap.At(packet.y, packet.x).obstacle = Obstacle::Bomb;
+    Audio::PlayEffect("Ballon.wav");
+    return true;
+}
+
+/* 수정 - 2026-11-20 */
+bool StageScene::OnExplode(const S2C_Explode& packet)
+{
+    if (packet.size != sizeof(packet) || packet.type != S2C_EXPLODE) return false;
+    for (auto& bomb : mNetworkBombs) {
+        if (bomb.bombId != packet.bombId) continue;
+        if (bomb.exploding || packet.reachLeft > bomb.x || packet.reachRight >= MAP_TILES - bomb.x
+            || packet.reachUp > bomb.y || packet.reachDown >= MAP_TILES - bomb.y) return false;
+        bomb.exploding = true;
+        bomb.up = packet.reachUp;
+        bomb.down = packet.reachDown;
+        bomb.left = packet.reachLeft;
+        bomb.right = packet.reachRight;
+        mMap.At(bomb.y, bomb.x).obstacle = Obstacle::Empty;
+        Audio::PlayEffect("Bubble.wav");
+        return true;
+    }
+    return false;
+}
+
+/* 11/21 */
+bool StageScene::OnBlockBreak(const S2C_BlockBreak& packet)
+{
+    if (packet.size != sizeof(packet) || packet.type != S2C_BLOCK_BREAK
+        || !TileMap::InBounds(packet.y, packet.x) || packet.item > ITEM_CLOCK) return false;
+    Tile& tile = mMap.At(packet.y, packet.x);
+    tile.obstacle = Obstacle::Empty;
+    tile.variant = 0;
+    tile.item = static_cast<ItemType>(packet.item);
+    return true;
 }
