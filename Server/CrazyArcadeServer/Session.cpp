@@ -133,6 +133,37 @@ bool SESSION::DoRecv()
     return true;   // 이번 루프 몫은 다 받음
 }
 
+namespace {
+    const char* StateName(SESSION_STATE state)
+    {
+        switch (state) {
+        case ST_FREE:      return "FREE";
+        case ST_CONNECTED: return "CONNECTED";
+        case ST_LOBBY:     return "LOBBY";
+        case ST_ROOM:      return "ROOM";
+        case ST_INGAME:    return "INGAME";
+        }
+        return "?";
+    }
+}
+
+bool SESSION::IsAllowed(unsigned char type) const
+{
+    switch (m_state) {
+    case ST_CONNECTED:
+        return type == C2S_ECHO || type == C2S_LOGIN;
+    case ST_LOBBY:
+        return type == C2S_ROOM_LIST || type == C2S_JOIN_ROOM;
+    case ST_ROOM:
+        return type == C2S_SELECT_MAP || type == C2S_SELECT_COLOR || type == C2S_READY
+            || type == C2S_START_GAME || type == C2S_LEAVE_ROOM;
+    case ST_INGAME:
+        return type == C2S_INPUT || type == C2S_ATTACK;
+    default:
+        return false;   // ST_FREE: 받을 패킷 없음
+    }
+}
+
 bool SESSION::ProcessPacket(unsigned char* packet)
 {
     auto header = reinterpret_cast<PACKET_HEADER*>(packet);
@@ -149,6 +180,14 @@ bool SESSION::ProcessPacket(unsigned char* packet)
         std::cout << "[" << m_id << "] bad size for type " << static_cast<int>(header->type)
                   << ": " << header->size << " (expected " << expected << ")" << std::endl;
         return false;
+    }
+
+    // 지금 상태에서 받을 수 없는 패킷 → 로그만 남기고 무시 (예: 로비에서 온 C2S_Attack)
+    // 모양은 정상이므로 접속은 끊지 않는다
+    if (!IsAllowed(header->type)) {
+        std::cout << "[" << m_id << "] not allowed, type " << static_cast<int>(header->type)
+                  << " (state " << StateName(m_state) << ")" << std::endl;
+        return true;
     }
 
     switch (header->type) {

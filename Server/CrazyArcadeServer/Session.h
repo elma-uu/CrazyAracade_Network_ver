@@ -23,7 +23,14 @@ public:
 
     // 패킷 하나 처리 (재조립이 끝난 완성 패킷만 들어온다)
     // false = 크기가 맞지 않는 잘못된 패킷 → 접속 종료
+    // 지금 상태에서 받을 수 없는 패킷은 처리하지 않고 로그만 남긴다 (IsAllowed)
     bool ProcessPacket(unsigned char* packet);
+
+    // 지금 상태에서 받을 수 있는 C2S 패킷인지 (계획서 3.4 표)
+    //   접속 직후: Echo, Login / 로비: RoomList, JoinRoom
+    //   방: SelectMap, SelectColor, Ready, StartGame, LeaveRoom / 게임 중: Input, Attack
+    // 방장만 보낼 수 있는 SelectMap·StartGame의 방장 검사는 Room에서 한다
+    bool IsAllowed(unsigned char type) const;
 
     // size만큼 송신 큐에 복사 (실제 전송은 메인 루프 끝의 FlushSend)
     void SendPacket(const void* packet);
