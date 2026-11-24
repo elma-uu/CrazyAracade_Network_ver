@@ -2,6 +2,9 @@
 #include "Scene.h"
 
 struct S2C_MapInfo;
+struct S2C_Attack;
+struct S2C_Explode;
+struct S2C_BlockBreak;
 
 enum class SceneType { Title, Login, Lobby, Room, Select, Forest, City, Ice, Count };
 
@@ -16,6 +19,9 @@ public:
     // 전환은 현재 프레임이 끝난 뒤 적용된다 (Update 도중 자기 자신이 파괴되는 일 방지).
     // 씬은 진입할 때마다 새로 생성되므로 이전 판의 상태가 남지 않는다.
     static void ChangeScene(SceneType type);
+    static bool OnBlockBreak(const S2C_BlockBreak& packet);
+    static bool OnExplode(const S2C_Explode& packet);
+    static bool OnAttack(const S2C_Attack& packet);
     static bool OnMapInfo(const S2C_MapInfo& packet);
 
     static void Update(float deltaTime);

@@ -1,4 +1,5 @@
-#include "GameClient.h"
+﻿#include "GameClient.h"
+#include "SceneManager.h"
 #include "NetworkManager.h"
 #include "Input.h"
 #include "Gfx.h"
@@ -364,6 +365,15 @@ void GameClient::OnGameStart(const S2C_GameStart* p)
     sMySlot = p->mySlot;
     sInGame = true;
     for (int i = 0; i < MAX_ROOM_PLAYER; ++i) sHasMove[i] = false;   // 지난 판 이동이 남지 않게
+
+    // 바로 뒤에 오는 S2C_MapInfo를 받을 수 있게 지금 스테이지 전환을 예약한다.
+    // (RoomScene도 다음 프레임에 같은 전환을 부르지만, ChangeScene이 같은 씬 예약은 무시하므로
+    //  받아 둔 맵 정보가 지워지지 않는다)
+    switch (p->mapId) {
+    case MAP_CITY: SceneManager::ChangeScene(SceneType::City); break;
+    case MAP_ICE: SceneManager::ChangeScene(SceneType::Ice); break;
+    default: SceneManager::ChangeScene(SceneType::Forest); break;
+    }
 }
 
 // id를 자리 번호로 바꿔 저장해 둔다
@@ -429,4 +439,26 @@ void GameClient::RenderEchoTest(HDC hdc)
         (NetworkManager::IsConnected() ? L" (연결됨)" : L" (연결 안 됨)"));
     Gfx::DrawSmallText(hdc, 10, 36, L"보냄 " + std::to_wstring(sEchoSent) +
         L" / 받음 " + std::to_wstring(sEchoReceived) + L"  마지막: " + sLastEcho);
+}
+
+void GameClient::OnMapInfo(const S2C_MapInfo* packet)
+{
+    if (!sInGame || packet->mapId != sGameStart.map) return;
+    SceneManager::OnMapInfo(*packet);
+}
+
+void GameClient::OnAttack(const S2C_Attack* packet)
+{
+    if (!sInGame) return;
+    SceneManager::OnAttack(*packet);
+}
+
+void GameClient::OnExplode(const S2C_Explode* packet)
+{
+    if (sInGame) SceneManager::OnExplode(*packet);
+}
+
+void GameClient::OnBlockBreak(const S2C_BlockBreak* packet)
+{
+    if (sInGame) SceneManager::OnBlockBreak(*packet);
 }

@@ -118,6 +118,9 @@ bool SESSION::DoRecv()
 
             if (!ProcessPacket(packet_start))   // 잘못된 패킷 → 접속 종료
                 return false;
+#ifdef _DEBUG
+            g_roomManager.CheckConsistency();   // 패킷 처리 뒤 방·세션 기록이 맞는지 (Debug 빌드만)
+#endif
             packet_start += packet_size;
             remain_data  -= packet_size;
         }
@@ -128,6 +131,37 @@ bool SESSION::DoRecv()
             memmove(m_recvBuf, packet_start, remain_data);
     }
     return true;   // 이번 루프 몫은 다 받음
+}
+
+namespace {
+    const char* StateName(SESSION_STATE state)
+    {
+        switch (state) {
+        case ST_FREE:      return "FREE";
+        case ST_CONNECTED: return "CONNECTED";
+        case ST_LOBBY:     return "LOBBY";
+        case ST_ROOM:      return "ROOM";
+        case ST_INGAME:    return "INGAME";
+        }
+        return "?";
+    }
+}
+
+bool SESSION::IsAllowed(unsigned char type) const
+{
+    switch (m_state) {
+    case ST_CONNECTED:
+        return type == C2S_ECHO || type == C2S_LOGIN;
+    case ST_LOBBY:
+        return type == C2S_ROOM_LIST || type == C2S_JOIN_ROOM;
+    case ST_ROOM:
+        return type == C2S_SELECT_MAP || type == C2S_SELECT_COLOR || type == C2S_READY
+            || type == C2S_START_GAME || type == C2S_LEAVE_ROOM;
+    case ST_INGAME:
+        return type == C2S_INPUT || type == C2S_ATTACK;
+    default:
+        return false;   // ST_FREE: 받을 패킷 없음
+    }
 }
 
 bool SESSION::ProcessPacket(unsigned char* packet)
@@ -146,6 +180,14 @@ bool SESSION::ProcessPacket(unsigned char* packet)
         std::cout << "[" << m_id << "] bad size for type " << static_cast<int>(header->type)
                   << ": " << header->size << " (expected " << expected << ")" << std::endl;
         return false;
+    }
+
+    // 지금 상태에서 받을 수 없는 패킷 → 로그만 남기고 무시 (예: 로비에서 온 C2S_Attack)
+    // 모양은 정상이므로 접속은 끊지 않는다
+    if (!IsAllowed(header->type)) {
+        std::cout << "[" << m_id << "] not allowed, type " << static_cast<int>(header->type)
+                  << " (state " << StateName(m_state) << ")" << std::endl;
+        return true;
     }
 
     switch (header->type) {
@@ -337,11 +379,14 @@ void SESSION::OnJoinRoom(const C2S_JoinRoom* p)
     room.SendRoomInfo();
     std::cout << "[" << m_id << "] joined room " << roomId << " slot " << slot
               << (room.IsHost(m_id) ? " (host)" : "") << std::endl;
+
+    // 로비에 남은 사람들의 방 목록 갱신 (나는 이미 ST_ROOM이라 받지 않는다)
+    g_roomManager.BroadcastRoomListToLobby();
 }
 
 // 방에서 나가기 → 로비. 남은 사람에게 알리는 것(S2C_PlayerLeave, S2C_RoomInfo)과
 // 방장 위임은 Room::Leave가 한다. 나간 본인에게는 따로 응답하지 않는다.
-// (게임 중 나가기는 접속 종료로만 처리 → 11/26, 로비 방 목록 갱신은 11/18)
+// (게임 중 나가기는 접속 종료로만 처리 → 11/26)
 void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
 {
     if (m_state != ST_ROOM) {
@@ -355,6 +400,9 @@ void SESSION::OnLeaveRoom(const C2S_LeaveRoom*)
     m_slot   = -1;
     m_state  = ST_LOBBY;
     std::cout << "[" << m_id << "] left room " << roomId << " -> lobby" << std::endl;
+
+    // 로비 전원(방금 로비로 돌아온 나 포함)에게 바뀐 방 목록
+    g_roomManager.BroadcastRoomListToLobby();
 }
 
 // 방장의 맵 선택
@@ -366,8 +414,10 @@ void SESSION::OnSelectMap(const C2S_SelectMap* p)
     }
     Room& room = g_roomManager.Get(m_roomId);
     int before = room.GetMapId();
-    if (room.SelectMap(m_id, p->mapId) && room.GetMapId() != before)
+    if (room.SelectMap(m_id, p->mapId) && room.GetMapId() != before) {
         room.SendRoomInfo();
+        g_roomManager.BroadcastRoomListToLobby();   // 로비 목록의 맵 아이콘 갱신 (11/18 김형민)
+    }
 }
 
 // 거부되면 요청한 사람에게만 방 상태를 다시 보낸다

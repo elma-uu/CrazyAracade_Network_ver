@@ -1,4 +1,4 @@
-#include "NetworkManager.h"
+﻿#include "NetworkManager.h"
 #include "GameClient.h"
 #include <cstdio>
 #include <cstring>
@@ -345,6 +345,18 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
         break;
     case S2C_ROOM_INFO:
         GameClient::OnRoomInfo(reinterpret_cast<S2C_RoomInfo*>(packet));
+        break;
+    case S2C_MAP_INFO:
+        GameClient::OnMapInfo(reinterpret_cast<S2C_MapInfo*>(packet));
+        break;
+    case S2C_BLOCK_BREAK:
+        GameClient::OnBlockBreak(reinterpret_cast<S2C_BlockBreak*>(packet));
+        break;
+    case S2C_EXPLODE:
+        GameClient::OnExplode(reinterpret_cast<S2C_Explode*>(packet));
+        break;
+    case S2C_ATTACK:
+        GameClient::OnAttack(reinterpret_cast<S2C_Attack*>(packet));
         break;
     case S2C_GAME_START:
         GameClient::OnGameStart(reinterpret_cast<S2C_GameStart*>(packet));

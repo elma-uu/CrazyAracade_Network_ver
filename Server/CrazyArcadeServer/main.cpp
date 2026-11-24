@@ -1,5 +1,6 @@
 #include "Server.h"
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 
 // 사용법: CrazyArcadeServer.exe [포트] [바인드 IP]
@@ -8,6 +9,7 @@
 int main(int argc, char* argv[])
 {
     SetConsoleOutputCP(CP_UTF8);   // 닉네임(UTF-8)이 콘솔에 제대로 보이도록
+    std::srand(static_cast<unsigned>(std::time(nullptr)));   // GameWorld의 블록·아이템 배치가 판마다 달라지도록
     std::cout << "=== Crazy Arcade Online Server ===" << std::endl;
 
     unsigned short port = static_cast<unsigned short>(SERVER_PORT);

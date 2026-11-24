@@ -199,9 +199,32 @@ bool Room::RequestStart(int sessionId)
         return false;
     }
 
-    // 게임 시작(StartGame → GameWorld::Init, S2C_GameStart, S2C_MapInfo)은 11/17
     std::cout << "[room " << m_id << "] start approved by host " << sessionId
               << " (" << GetPlayerCount() << " players)" << std::endl;
+    return StartGame();
+}
+
+// 순서 (계획서 3.5 / 2.5 순서도 ②):
+// 1) GameWorld 판 준비 (원본 init_board_*, 네 모서리와 옆 칸은 비워 둠)
+// 2) RS_PLAYING — 이때부터 이 방에는 입장 불가(ENTER_PLAYING), 로비 목록에도 "게임 중"
+// 3) S2C_GameStart: 받는 사람마다 mySlot이 다르고, 받은 세션은 ST_INGAME (SendGameStart, 김동연)
+// 4) S2C_MapInfo: 장애물·종류만 보내고 아이템 위치는 숨김 (BuildMapInfo, 민규동)
+bool Room::StartGame()
+{
+    if (!m_world.InitBoard(static_cast<MAP_ID>(m_mapId))) {
+        std::cout << "[room " << m_id << "] start failed: cannot build map " << m_mapId << std::endl;
+        return false;
+    }
+    m_state = RS_PLAYING;
+
+    SendGameStart();
+
+    S2C_MapInfo map{};
+    m_world.BuildMapInfo(map);
+    Broadcast(&map);
+
+    std::cout << "[room " << m_id << "] game started (map " << m_mapId << ")" << std::endl;
+    g_roomManager.BroadcastRoomListToLobby();   // 로비 목록에 "게임 중"으로
     return true;
 }
 
@@ -332,6 +355,71 @@ int RoomManager::FindRoomOf(int sessionId) const
         if (r.FindSlot(sessionId) != -1)
             return r.GetId();
     return -1;
+}
+
+bool RoomManager::CheckConsistency() const
+{
+    bool ok = true;
+    auto fail = [&ok](int roomId, const char* what, int id) {
+        std::cout << "[check] room " << roomId << ": " << what << " (id " << id << ")" << std::endl;
+        ok = false;
+    };
+
+    bool inRoom[MAX_USER]{};
+    for (const Room& r : m_rooms) {
+        const int count = r.GetPlayerCount();
+        if ((count == 0) != (r.GetState() == RS_EMPTY))
+            fail(r.GetId(), "state does not match player count", count);
+        if (count == 0 && r.GetHostSlot() != -1)
+            fail(r.GetId(), "empty room still has a host slot", r.GetHostSlot());
+        if (count > 0 && (r.GetHostSlot() < 0 || r.GetHostSlot() >= MAX_ROOM_PLAYER
+                          || r.GetMember(r.GetHostSlot()) == -1))
+            fail(r.GetId(), "host slot is empty", r.GetHostSlot());
+
+        for (int slot = 0; slot < MAX_ROOM_PLAYER; ++slot) {
+            const int id = r.GetMember(slot);
+            if (id == -1) continue;
+            if (id < 0 || id >= MAX_USER) { fail(r.GetId(), "bad session id in a slot", id); continue; }
+            if (inRoom[id]) fail(r.GetId(), "session is in two places", id);
+            inRoom[id] = true;
+
+            const SESSION& s = g_sessions[id];
+            if (s.GetState() != ST_ROOM && s.GetState() != ST_INGAME)
+                fail(r.GetId(), "member session is not in a room state (left or disconnected?)", id);
+            else if (s.GetRoomId() != r.GetId() || s.GetSlot() != slot)
+                fail(r.GetId(), "member session points to another room/slot", id);
+            else if ((s.GetState() == ST_INGAME) != (r.GetState() == RS_PLAYING))
+                fail(r.GetId(), "member game state does not match room state", id);
+        }
+    }
+
+    for (int id = 0; id < MAX_USER; ++id) {
+        const SESSION& s = g_sessions[id];
+        const bool roomState = s.GetState() == ST_ROOM || s.GetState() == ST_INGAME;
+        if (roomState && !inRoom[id])
+            fail(s.GetRoomId(), "session thinks it is in a room but no room has it", id);
+        if (!roomState && s.GetRoomId() != -1)
+            fail(s.GetRoomId(), "session outside rooms still has a room id", id);
+    }
+    return ok;
+}
+
+void RoomManager::BroadcastRoomListToLobby()
+{
+    m_roomListDirty = true;
+}
+
+void RoomManager::FlushRoomList()
+{
+    if (!m_roomListDirty)
+        return;
+    m_roomListDirty = false;
+
+    S2C_RoomList list;
+    FillRoomList(list);
+    for (SESSION& s : g_sessions)
+        if (s.GetState() == ST_LOBBY)   // 방·게임 중이거나 끊긴 세션은 받지 않는다
+            s.SendPacket(&list);
 }
 
 void RoomManager::FillRoomList(S2C_RoomList& out) const

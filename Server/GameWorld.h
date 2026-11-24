@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <functional>
 #include "ServerBomb.h"
 #include "FixedStepLoop.h"
 
@@ -19,6 +20,11 @@ struct BombOwner {
     int slot, row, col;
     bool alive;
     int reach = 1, maxBombs = 2, apples = 0;
+};
+
+struct ItemOwner : BombOwner {
+    float speed = 1.0f;
+    int timeLeftMs = 30000;
 };
 
 class GameWorld {
@@ -44,8 +50,31 @@ public:
         room.Broadcast(&placed);
         return true;
     }
+    /* 수정 - 2026-11-19 */
+    template<class Room, class Move>
+    void Advance(Room& room, std::uint64_t elapsedMs, Move stepMovement)
+    {
+        clock.Advance(elapsedMs, stepMovement, [this, &room] {
+            StepBomb([&room](const S2C_Explode& packet) { room.Broadcast(&packet); },
+                [&room](const S2C_BlockBreak& packet) { room.Broadcast(&packet); });
+        });
+    }
+    /* 수정 - 2026-11-23 */
+    template<class Room>
+    bool PickUpItem(Room& room, int sessionId, ItemOwner& owner)
+    {
+        if (sessionId < 0 || room.FindSlot(sessionId) != owner.slot) return false;
+        S2C_ItemGet packet{};
+        if (!TakeItem(owner, packet)) return false;
+        packet.id = sessionId;
+        room.Broadcast(&packet);
+        return true;
+    }
     void StepBomb();
-    void ResolveExplosion(ServerBomb& bomb);
+    void StepBomb(const std::function<void(const S2C_Explode&)>& broadcast,
+        const std::function<void(const S2C_BlockBreak&)>& blockBreak = {});
+    void ResolveExplosion(ServerBomb& bomb,
+        const std::function<void(const S2C_BlockBreak&)>& blockBreak = {});
     bool InitBoard(MAP_ID id);
     bool IsWalkable(int row, int col) const
     {
@@ -55,6 +84,7 @@ public:
 
 private:
     bool PlaceBomb(const C2S_Attack& request, const BombOwner& owner, S2C_Attack* placed);
+    bool TakeItem(ItemOwner& owner, S2C_ItemGet& packet);
     int nextBombId = 0;
     FixedStepLoop clock;
     std::vector<ServerBomb> bombs;
