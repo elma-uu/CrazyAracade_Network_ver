@@ -428,3 +428,10 @@ void GameClient::OnBlockBreak(const S2C_BlockBreak* packet)
 {
     if (sInGame) SceneManager::OnBlockBreak(*packet);
 }
+
+
+/* 수정 - 2026-11-24 */
+void GameClient::OnItemGet(const S2C_ItemGet* packet)
+{
+    if (sInGame) SceneManager::OnItemGet(*packet);
+}

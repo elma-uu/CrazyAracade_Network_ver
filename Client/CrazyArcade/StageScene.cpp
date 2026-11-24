@@ -313,3 +313,23 @@ bool StageScene::OnBlockBreak(const S2C_BlockBreak& packet)
     tile.item = static_cast<ItemType>(packet.item);
     return true;
 }
+
+/* 수정 - 2026-11-24 */
+bool StageScene::OnItemGet(const S2C_ItemGet& packet)
+{
+    if (!mOnline || packet.size != sizeof(packet) || packet.type != S2C_ITEM_GET
+        || !TileMap::InBounds(packet.y, packet.x) || packet.item == ITEM_NONE
+        || packet.item > ITEM_CLOCK || packet.bombReach == 0 || packet.maxBomb == 0
+        || !(packet.speed >= 1.0f && packet.speed <= 1.5f)) return false;
+    const auto& start = GameClient::GameStart();
+    for (int i = 0; i < MaxPlayers; ++i) {
+        if (!mPlayers[i] || start.players[i].id != packet.id) continue;
+        mMap.At(packet.y, packet.x).item = ItemType::None;
+        // 직접 증가시키지 않고 서버가 계산한 최종 능력치를 반영한다.
+        mPlayers[i]->SetBombRange(packet.bombReach);
+        mPlayers[i]->SetMaxBombs(packet.maxBomb);
+        mPlayers[i]->SetSpeed(packet.speed);
+        return true;
+    }
+    return false;
+}

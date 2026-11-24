@@ -107,3 +107,12 @@ bool SceneManager::OnBlockBreak(const S2C_BlockBreak& packet)
     auto* stage = dynamic_cast<StageScene*>(sActive.get());
     return stage && stage->OnBlockBreak(packet);
 }
+
+
+/* 수정 - 2026-11-24 */
+bool SceneManager::OnItemGet(const S2C_ItemGet& packet)
+{
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnItemGet(packet);
+}

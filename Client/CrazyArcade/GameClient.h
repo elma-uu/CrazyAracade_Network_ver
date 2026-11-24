@@ -123,6 +123,8 @@ public:
     static void OnPlayerLeave(const S2C_PlayerLeave* p);
     static void OnMapInfo(const S2C_MapInfo* packet);
     static void OnBlockBreak(const S2C_BlockBreak* packet);
+    /* 수정 - 2026-11-24 */
+    static void OnItemGet(const S2C_ItemGet* packet);
     static void OnExplode(const S2C_Explode* packet);
     static void OnAttack(const S2C_Attack* packet);
     static void OnGameStart(const S2C_GameStart* p);

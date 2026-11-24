@@ -5,6 +5,7 @@ struct S2C_MapInfo;
 struct S2C_Attack;
 struct S2C_Explode;
 struct S2C_BlockBreak;
+struct S2C_ItemGet;
 
 enum class SceneType { Title, Login, Lobby, Room, Select, Forest, City, Ice, Count };
 
@@ -20,6 +21,8 @@ public:
     // 씬은 진입할 때마다 새로 생성되므로 이전 판의 상태가 남지 않는다.
     static void ChangeScene(SceneType type);
     static bool OnBlockBreak(const S2C_BlockBreak& packet);
+    /* 수정 - 2026-11-24 */
+    static bool OnItemGet(const S2C_ItemGet& packet);
     static bool OnExplode(const S2C_Explode& packet);
     static bool OnAttack(const S2C_Attack& packet);
     static bool OnMapInfo(const S2C_MapInfo& packet);

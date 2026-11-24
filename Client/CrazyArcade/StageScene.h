@@ -16,6 +16,8 @@ class StageScene : public Scene {
 public:
     StageScene();
     bool OnBlockBreak(const S2C_BlockBreak& packet);
+    /* 수정 - 2026-11-24 */
+    bool OnItemGet(const S2C_ItemGet& packet);
     bool OnExplode(const S2C_Explode& packet);
     bool OnAttack(const S2C_Attack& packet);
     void ApplyMapInfo(const S2C_MapInfo& packet);
