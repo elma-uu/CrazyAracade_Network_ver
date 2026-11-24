@@ -98,7 +98,8 @@
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(FmodDir)lib\$(FmodArch)\fmod.dll" xcopy /y /d "$(FmodDir)lib\$(FmodArch)\fmod.dll" "$(OutDir)"
-xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</Command>
+xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"
+xcopy /y /d /i "$(ProjectDir)Resource\Font\*.ttf" "$(OutDir)Resource\Font\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,7 +122,8 @@ xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</C
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(FmodDir)lib\$(FmodArch)\fmod.dll" xcopy /y /d "$(FmodDir)lib\$(FmodArch)\fmod.dll" "$(OutDir)"
-xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</Command>
+xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"
+xcopy /y /d /i "$(ProjectDir)Resource\Font\*.ttf" "$(OutDir)Resource\Font\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -142,7 +144,8 @@ xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</C
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(FmodDir)lib\$(FmodArch)\fmod.dll" xcopy /y /d "$(FmodDir)lib\$(FmodArch)\fmod.dll" "$(OutDir)"
-xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</Command>
+xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"
+xcopy /y /d /i "$(ProjectDir)Resource\Font\*.ttf" "$(OutDir)Resource\Font\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -167,7 +170,8 @@ xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</C
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(FmodDir)lib\$(FmodArch)\fmod.dll" xcopy /y /d "$(FmodDir)lib\$(FmodArch)\fmod.dll" "$(OutDir)"
-xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"</Command>
+xcopy /y /d /i "$(ProjectDir)Resource\Sound\*.wav" "$(OutDir)Resource\Sound\"
+xcopy /y /d /i "$(ProjectDir)Resource\Font\*.ttf" "$(OutDir)Resource\Font\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(HasFmod)'=='true'">

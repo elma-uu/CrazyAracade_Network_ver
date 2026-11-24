@@ -258,7 +258,6 @@ void StageScene::Render(HDC hdc)
 
     RenderMap(hdc);
     if (mOnline) {
-        RenderOnlineNames(hdc);
         RenderOnlineHud(hdc);
         return;
     }
@@ -266,22 +265,99 @@ void StageScene::Render(HDC hdc)
     if (IsGameOver()) RenderResult(hdc);
 }
 
-void StageScene::RenderOnlineNames(HDC hdc) const
+RECT StageScene::OnlineCardRect(int slot)
 {
-    // 머리 위 닉네임, 나는 노란색
+    const int w = 256, h = 196;
+    int x = (slot % 2 == 0) ? 26 : 1193;   // 맵 양옆 빈 곳의 가운데
+    int y = (slot < 2) ? 40 : Config::ScreenHeight - 40 - h;
+    return { x, y, x + w, y + h };
+}
+
+RECT StageScene::DrawOnlineCard(HDC hdc, int slot) const
+{
     const GameClient::GameStartInfo& start = GameClient::GameStart();
-    for (int i = 0; i < MaxPlayers; ++i) {
-        if (!mPlayers[i]) continue;
-        POINT c = TileMap::TileCenter(mPlayers[i]->GetRow(), mPlayers[i]->GetCol());
-        COLORREF color = (i == start.mySlot) ? RGB(255, 230, 0) : RGB(255, 255, 255);
-        Gfx::DrawSmallText(hdc, c.x - 30, c.y - 62, start.players[i].name, color);
+    const bool me = (slot == start.mySlot);
+    RECT card = OnlineCardRect(slot);
+
+    Gfx::FillAlpha(hdc, card, RGB(6, 32, 74), 170);
+    Gfx::DrawRoundFrame(hdc, card, 10, me ? RGB(255, 210, 40) : RGB(90, 170, 240), 2);
+
+    // 위쪽: 초상화, 이름, 나/P번호
+    if (mPlayers[slot]) mPlayers[slot]->RenderPortrait(hdc, card.left + 12, card.top + 10);
+    Gfx::DrawPixelText(hdc, { card.left + 100, card.top + 10, card.right - 12, card.top + 36 },
+        start.players[slot].name, me ? RGB(255, 230, 0) : RGB(255, 255, 255), Gfx::Align::Left, 20);
+    Gfx::DrawPixelText(hdc, { card.left + 100, card.top + 38, card.right - 12, card.top + 60 },
+        me ? L"나" : L"P" + std::to_wstring(slot + 1), me ? RGB(255, 230, 0) : RGB(150, 180, 220), Gfx::Align::Left, 16);
+
+    // 구분선
+    RECT line = { card.left + 12, card.top + 68, card.right - 12, card.top + 70 };
+    Gfx::FillAlpha(hdc, line, RGB(90, 170, 240), 150);
+
+    return { card.left, card.top + 72, card.right, card.bottom - 6 };
+}
+
+void StageScene::DrawOnlineCardOut(HDC hdc, int slot) const
+{
+    if (!GameClient::HasStageState() || GameClient::Stage(slot).alive) return;
+    RECT card = OnlineCardRect(slot);
+    Gfx::FillAlpha(hdc, card, RGB(0, 0, 0), 150);
+    // 위쪽 오른편에 뱃지 (내용 줄과 안 겹치게)
+    RECT badge = { card.right - 84, card.top + 16, card.right - 12, card.top + 52 };
+    Gfx::FillAlpha(hdc, badge, RGB(170, 30, 30), 230);
+    Gfx::DrawRoundFrame(hdc, badge, 6, RGB(255, 120, 120), 2);
+    Gfx::DrawPixelText(hdc, badge, L"탈락", RGB(255, 255, 255), Gfx::Align::Center, 24, RGB(90, 0, 0), 1);
+}
+
+void StageScene::DrawOnlineStageInfo(HDC hdc, const wchar_t* title, const wchar_t* sub,
+    std::initializer_list<const wchar_t*> rules) const
+{
+    // 왼쪽 가운데: 스테이지 이름과 규칙
+    RECT info = { 26, 300, 282, 600 };
+    Gfx::FillAlpha(hdc, info, RGB(6, 32, 74), 120);
+    Gfx::DrawRoundFrame(hdc, info, 10, RGB(60, 130, 210), 2);
+    Gfx::DrawPixelText(hdc, { info.left, info.top + 16, info.right, info.top + 48 }, title, RGB(255, 230, 0), Gfx::Align::Center, 32);
+    Gfx::DrawPixelText(hdc, { info.left, info.top + 54, info.right, info.top + 74 }, sub, RGB(150, 200, 255), Gfx::Align::Center, 16);
+    RECT line = { info.left + 16, info.top + 88, info.right - 16, info.top + 90 };
+    Gfx::FillAlpha(hdc, line, RGB(90, 170, 240), 150);
+    int y = info.top + 106;
+    for (const wchar_t* rule : rules) {
+        Gfx::DrawPixelText(hdc, { info.left + 18, y, info.right - 12, y + 22 }, rule, RGB(255, 255, 255), Gfx::Align::Left, 16);
+        y += 34;
     }
+
+    // 오른쪽 가운데: 남은 인원
+    const GameClient::GameStartInfo& start = GameClient::GameStart();
+    int total = 0, alive = 0;
+    for (int i = 0; i < MaxPlayers; ++i) {
+        if (!start.players[i].exist) continue;
+        ++total;
+        if (!GameClient::HasStageState() || GameClient::Stage(i).alive) ++alive;
+    }
+    RECT count = { 1193, 380, 1449, 520 };
+    Gfx::FillAlpha(hdc, count, RGB(6, 32, 74), 120);
+    Gfx::DrawRoundFrame(hdc, count, 10, RGB(60, 130, 210), 2);
+    Gfx::DrawPixelText(hdc, { count.left, count.top + 18, count.right, count.top + 42 }, L"생존", RGB(150, 200, 255), Gfx::Align::Center, 24);
+    Gfx::DrawPixelText(hdc, { count.left, count.top + 60, count.right, count.top + 108 },
+        std::to_wstring(alive) + L" / " + std::to_wstring(total), RGB(255, 255, 255), Gfx::Align::Center, 48, RGB(8, 36, 90), 2);
 }
 
 void StageScene::RenderCommonHud(HDC hdc) const
 {
+    if (mOnline) {
+        // 온라인에서는 2인용 패널(TIMER, ITEM)을 안 쓰므로 배경색과 맵 테두리만 그린다
+        Gfx::DrawOpaque(hdc, BitmapID::GameUI, 0, 0, Config::ScreenWidth, Config::ScreenHeight, 825, 0, 4, 780);
+        Gfx::DrawOpaque(hdc, BitmapID::GameUI, 296, 0, 854, 900, 212, 0, 613, 780);
+        // 좌우 카드들을 큰 박스로 한 번 감싼다
+        const RECT sides[2] = { { 12, 24, 296, 876 }, { 1179, 24, 1463, 876 } };
+        for (const RECT& side : sides) {
+            Gfx::FillAlpha(hdc, side, RGB(4, 40, 110), 140);
+            Gfx::DrawRoundFrame(hdc, side, 14, RGB(70, 150, 230), 3);
+            RECT inner = { side.left + 5, side.top + 5, side.right - 5, side.bottom - 5 };
+            Gfx::DrawRoundFrame(hdc, inner, 10, RGB(20, 90, 180), 1);
+        }
+        return;
+    }
     Gfx::DrawOpaque(hdc, BitmapID::GameUI, 0, 0, 1450, 900, 0, 0, 1040, 780);
-    if (mOnline) return;   // 2인 모드에서만
 
     const int portraitX[PlayerCount] = { 175, 1195 };
     const int iconX[PlayerCount] = { 50, 1200 };

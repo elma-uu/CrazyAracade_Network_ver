@@ -45,6 +45,16 @@ protected:
     // 온라인 HUD (S2C_StageState 값으로)
     virtual void RenderOnlineHud(HDC hdc) {}
 
+    // 온라인 플레이어 카드: 시작 모서리 쪽 (0 왼위, 1 오른위, 2 왼아래, 3 오른아래)
+    static RECT OnlineCardRect(int slot);
+    // 카드 바탕·초상화·이름을 그리고 내용 칸을 돌려준다
+    RECT DrawOnlineCard(HDC hdc, int slot) const;
+    // 탈락이면 카드를 어둡게
+    void DrawOnlineCardOut(HDC hdc, int slot) const;
+    // 맵 양옆 가운데: 왼쪽 스테이지 규칙, 오른쪽 남은 인원
+    void DrawOnlineStageInfo(HDC hdc, const wchar_t* title, const wchar_t* sub,
+        std::initializer_list<const wchar_t*> rules) const;
+
     void EndGame(int winnerIndex);
     bool IsGameOver() const { return mWinner >= 0; }
 
@@ -74,7 +84,6 @@ private:
     void UpdateBombs();
     void PickUpItem(Player& player);
     void RenderCommonHud(HDC hdc) const;
-    void RenderOnlineNames(HDC hdc) const;
     void RenderResult(HDC hdc) const;
 
     std::vector<std::unique_ptr<Bomb>> mBombs;

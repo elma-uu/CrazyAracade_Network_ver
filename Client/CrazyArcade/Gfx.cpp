@@ -6,13 +6,25 @@ namespace {
     HDC sMemDC = nullptr;
     HBITMAP sTintPixel = nullptr;        // FillAlpha용 1x1 32비트
     DWORD* sTintBits = nullptr;
-    std::map<int, HFONT> sPixelFonts;    // 크기별 돋움 Bold
+    std::map<int, HFONT> sPixelFonts;    // 크기별 픽셀 폰트
     std::map<std::pair<int, std::wstring>, RECT> sInkCache;   // 글씨별 실제 픽셀 범위
     HFONT sTextFont = nullptr;
     HFONT sSmallFont = nullptr;
     HPEN sTextPen = nullptr;
     HBRUSH sTextBrush = nullptr;
     HBITMAP sBlackPixel = nullptr;
+
+    // 작은 캔버스에 그린 글씨는 늘리면 뭉개져서, 모아 뒀다가 늘린 뒤 화면에 그린다
+    struct PendingText {
+        RECT box;
+        std::wstring text;
+        COLORREF color, outline;
+        Gfx::Align align;
+        int size, outlineWidth;
+    };
+    HDC sDeferDC = nullptr;
+    double sScaleX = 1.0, sScaleY = 1.0;
+    std::vector<PendingText> sPending;
 
     HDC MemDC()
     {
@@ -28,12 +40,28 @@ namespace {
         return sSmallFont;
     }
 
+    // Neo둥근모 Pro: exe 옆 Resource\Font 에서 이 프로그램 안에서만 쓰게 등록
+    std::wstring sFontPath;
+    bool sFontAdded = false;
+
+    void AddPixelFontFile()
+    {
+        if (!sFontPath.empty()) return;
+        wchar_t path[MAX_PATH] = {};
+        GetModuleFileNameW(nullptr, path, MAX_PATH);
+        sFontPath = path;
+        sFontPath = sFontPath.substr(0, sFontPath.find_last_of(L"\\/") + 1) + L"Resource\\Font\\NeoDunggeunmoPro-Regular.ttf";
+        sFontAdded = AddFontResourceExW(sFontPath.c_str(), FR_PRIVATE, nullptr) > 0;
+    }
+
     HFONT PixelFont(int size)
     {
+        AddPixelFontFile();
         HFONT& font = sPixelFonts[size];
-        if (!font) font = CreateFontW(-size, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+        // 폰트 파일이 없으면 돋움으로
+        if (!font) font = CreateFontW(-size, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             HANGEUL_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            NONANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"돋움");
+            NONANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, sFontAdded ? L"NeoDunggeunmo Pro" : L"돋움");
         return font;
     }
 
@@ -218,6 +246,10 @@ void Gfx::DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLO
     Align align, int size, COLORREF outline, int outlineWidth)
 {
     if (text.empty()) return;
+    if (sDeferDC && hdc == sDeferDC) {
+        sPending.push_back({ box, text, color, outline, align, size, outlineWidth });
+        return;
+    }
     const int ow = outlineWidth;
     const RECT ink = InkBox(size, text);
     const RECT ref = InkBox(size, L"한");
@@ -247,6 +279,28 @@ void Gfx::DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLO
     SetTextColor(hdc, oldColor);
     SetBkMode(hdc, oldBkMode);
     SelectObject(hdc, oldFont);
+}
+
+void Gfx::BeginScaledText(HDC canvas, double scaleX, double scaleY)
+{
+    sDeferDC = canvas;
+    sScaleX = scaleX;
+    sScaleY = scaleY;
+    sPending.clear();
+}
+
+void Gfx::EndScaledText(HDC screen)
+{
+    sDeferDC = nullptr;
+    for (const PendingText& t : sPending) {
+        RECT box = {
+            static_cast<LONG>(t.box.left * sScaleX), static_cast<LONG>(t.box.top * sScaleY),
+            static_cast<LONG>(t.box.right * sScaleX), static_cast<LONG>(t.box.bottom * sScaleY) };
+        // 글씨 크기는 세로 배율만큼 (가로까지 늘리면 넓적해짐)
+        int size = static_cast<int>(t.size * sScaleY + 0.5);
+        DrawPixelText(screen, box, t.text, t.color, t.align, size, t.outline, t.outlineWidth);
+    }
+    sPending.clear();
 }
 
 void Gfx::DrawOutlinedText(HDC hdc, int x, int y, const std::wstring& text)
@@ -384,6 +438,9 @@ void Gfx::Release()
     for (auto& kv : sPixelFonts) if (kv.second) DeleteObject(kv.second);
     sPixelFonts.clear();
     sInkCache.clear();
+    if (sFontAdded) RemoveFontResourceExW(sFontPath.c_str(), FR_PRIVATE, nullptr);
+    sFontAdded = false;
+    sFontPath.clear();
     sTintPixel = nullptr;
     sTintBits = nullptr;
     sMemDC = nullptr;

@@ -31,6 +31,9 @@ namespace Gfx {
     int PixelTextFit(const std::wstring& text, int maxWidth, int size = 12);
     void DrawPixelText(HDC hdc, const RECT& box, const std::wstring& text, COLORREF color,
         Align align = Align::Center, int size = 12, COLORREF outline = RGB(8, 36, 90), int outlineWidth = 1);
+    // Begin 이후 canvas에 그리는 픽셀 글씨는 모아 뒀다가 End에서 배율대로 screen에 그린다
+    void BeginScaledText(HDC canvas, double scaleX, double scaleY);
+    void EndScaledText(HDC screen);
 
     // 지정한 색상 범위(hue)의 픽셀만 hueShift만큼 돌린 새 비트맵을 만든다. 호출자가 DeleteObject 해야 함
     HBITMAP CreateHueShiftedCopy(HBITMAP source, double hueShift, double hueMin, double hueMax);

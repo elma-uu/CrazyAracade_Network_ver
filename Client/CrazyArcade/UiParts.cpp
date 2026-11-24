@@ -245,6 +245,7 @@ HDC Ui::Canvas::Begin(HDC screen)
         mBitmap = CreateCompatibleBitmap(screen, CanvasW, CanvasH);
         mOld = SelectObject(mDC, mBitmap);
     }
+    Gfx::BeginScaledText(mDC, double(Config::ScreenWidth) / CanvasW, double(Config::ScreenHeight) / CanvasH);
     return mDC;
 }
 
@@ -254,4 +255,6 @@ void Ui::Canvas::Present(HDC screen) const
     int oldMode = SetStretchBltMode(screen, COLORONCOLOR);
     StretchBlt(screen, 0, 0, Config::ScreenWidth, Config::ScreenHeight, mDC, 0, 0, CanvasW, CanvasH, SRCCOPY);
     SetStretchBltMode(screen, oldMode);
+    // 글씨는 늘린 뒤 화면 해상도로
+    Gfx::EndScaledText(screen);
 }

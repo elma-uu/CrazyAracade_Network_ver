@@ -312,9 +312,10 @@ void RoomScene::DrawButtons(HDC c) const
     Gfx::DrawPixelText(c, kLeaveButton, L"방 나가기", White, Gfx::Align::Center, 18, RGB(0x0b, 0x3f, 0x86), 2);
 
     if (GameClient::AmIHost()) {
-        Gfx::DrawPixelText(c, kStartButton, L"시     작", White, Gfx::Align::Center, 24, RGB(0xc3, 0x4a, 0x00), 2);
-        // 아직 시작할 수 없으면 버튼을 어둡게
-        if (!CanStart(room)) Gfx::FillAlpha(c, { kStartButton.left + 4, kStartButton.top + 4, kStartButton.right - 4, kStartButton.bottom - 4 }, RGB(6, 32, 74), 110);
+        // 아직 시작할 수 없으면 버튼과 글씨를 어둡게
+        bool canStart = CanStart(room);
+        if (!canStart) Gfx::FillAlpha(c, { kStartButton.left + 4, kStartButton.top + 4, kStartButton.right - 4, kStartButton.bottom - 4 }, RGB(6, 32, 74), 110);
+        Gfx::DrawPixelText(c, kStartButton, L"시     작", canStart ? White : RGB(150, 160, 180), Gfx::Align::Center, 24, RGB(0xc3, 0x4a, 0x00), 2);
     } else {
         const int mySlot = GameClient::MySlot();
         bool ready = mySlot >= 0 && room.players[mySlot].ready;

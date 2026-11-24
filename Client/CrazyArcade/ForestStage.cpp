@@ -126,29 +126,40 @@ void ForestStage::RenderMap(HDC hdc)
 }
 
 // 온라인 숲 HUD: 자리마다 들고 있는 사과, 사과상자
-// 자리 0·2는 왼쪽, 1·3은 오른쪽 (시작 모서리와 같은 쪽), 위/아래도 시작 위치 따라
+// 카드는 시작 모서리 쪽에 (StageScene::OnlineCardRect)
 void ForestStage::RenderOnlineHud(HDC hdc)
 {
     const GameClient::GameStartInfo& start = GameClient::GameStart();
 
+    DrawOnlineStageInfo(hdc, L"숲", L"사과 쟁탈전", {
+        L"사과나무를 터뜨려 줍기",
+        L"내 상자 옆에서 저장",
+        L"맞으면 든 사과를 뺏김",
+        L"사과 없이 맞으면 상자 -1",
+        L"상자가 비었는데 맞으면 탈락" });
+
     for (int i = 0; i < MaxPlayers; i++) {
         if (!start.players[i].exist) continue;
 
-        int x = (i % 2 == 0) ? 40 : 1170;
-        int y = (i < 2) ? 140 : 520;
+        RECT body = DrawOnlineCard(hdc, i);
         const GameClient::StageView& s = GameClient::Stage(i);
 
-        COLORREF nameColor = (i == start.mySlot) ? RGB(255, 230, 0) : RGB(255, 255, 255);
-        Gfx::DrawSmallText(hdc, x, y, start.players[i].name, nameColor);
+        // 두 줄: 사과 / 사과상자
+        int rowH = (body.bottom - body.top) / 2;
+        for (int row = 0; row < 2; row++) {
+            int top = body.top + row * rowH;
+            if (row == 0)
+                Gfx::Draw(hdc, BitmapID::ForestApple, body.left + 16, top + (rowH - 36) / 2, 36, 36, 0, 0, 40, 40);
+            else
+                Gfx::Draw(hdc, BitmapID::ForestAppleBox, body.left + 16, top + (rowH - 36) / 2, 36, 36, 0, 0, 64, 64);
 
-        Gfx::Draw(hdc, BitmapID::ForestApple, x, y + 40, 48, 48, 0, 0, 40, 40);
-        Gfx::DrawSmallText(hdc, x + 60, y + 52, L"사과 " + std::to_wstring(s.apple));
+            RECT text = { body.left + 64, top, body.right - 18, top + rowH };
+            Gfx::DrawPixelText(hdc, text, row == 0 ? L"사과" : L"사과상자", RGB(255, 255, 255), Gfx::Align::Left, 24);
+            int count = (row == 0) ? s.apple : s.appleBox;
+            Gfx::DrawPixelText(hdc, text, std::to_wstring(count), RGB(255, 230, 0), Gfx::Align::Right, 24);
+        }
 
-        Gfx::Draw(hdc, BitmapID::ForestAppleBox, x, y + 95, 48, 48, 0, 0, 64, 64);
-        Gfx::DrawSmallText(hdc, x + 60, y + 107, L"사과상자 " + std::to_wstring(s.appleBox));
-
-        if (GameClient::HasStageState() && !s.alive)
-            Gfx::DrawSmallText(hdc, x, y + 155, L"탈락", RGB(255, 120, 120));
+        DrawOnlineCardOut(hdc, i);
     }
 }
 
