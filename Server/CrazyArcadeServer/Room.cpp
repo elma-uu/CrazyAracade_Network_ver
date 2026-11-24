@@ -294,6 +294,14 @@ void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
         SendStageState();
 }
 
+void Room::OnPlayerHit(int victimSlot, int attackerSlot)
+{
+    if (m_state != RS_PLAYING) return;
+    m_stage.OnHit(victimSlot, attackerSlot);   // 숲: 사과 뺏기
+    if (m_stage.IsChanged())
+        SendStageState();
+}
+
 void Room::SendStageState()
 {
     S2C_StageState s;

@@ -60,6 +60,8 @@ public:
     StageState& Stage() { return m_stage; }
     // 방 전원에게 S2C_StageState
     void SendStageState();
+    // 물풍선에 맞았을 때 (S2C_Hit 처리에서 부른다)
+    void OnPlayerHit(int victimSlot, int attackerSlot);
 
     // 대기 중 && 방장 && CanStart() 일 때만 StartGame() 후 true.
     // 안 되면 이유를 로그로 남기고 false

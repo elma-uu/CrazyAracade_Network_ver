@@ -62,6 +62,23 @@ void StageState::DepositApples(int slot, int x, int y)
     m_changed = true;
 }
 
+void StageState::OnHit(int victimSlot, int attackerSlot)
+{
+    if (m_mapId != MAP_FOREST) return;
+    if (!IsValidPlayer(victimSlot)) return;
+
+    StagePlayer& victim = m_players[victimSlot];
+    if (victim.apple <= 0) return;   // 들고 있는 사과가 없을 때는 11/26 (상자 감소·탈락)
+
+    // 내 물풍선에 맞았거나 때린 사람이 없으면 뺏어 갈 사람이 없다
+    if (victimSlot == attackerSlot) return;
+    if (!IsValidPlayer(attackerSlot)) return;
+
+    m_players[attackerSlot].apple += victim.apple;
+    victim.apple = 0;
+    m_changed = true;
+}
+
 void StageState::Fill(S2C_StageState& out) const
 {
     out = S2C_StageState();
