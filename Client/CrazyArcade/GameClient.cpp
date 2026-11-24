@@ -23,6 +23,8 @@ bool GameClient::sInGame = false;
 GameClient::GameStartInfo GameClient::sGameStart;
 GameClient::MoveView GameClient::sMoves[MAX_ROOM_PLAYER];
 bool GameClient::sHasMove[MAX_ROOM_PLAYER] = {};
+GameClient::StageView GameClient::sStage[MAX_ROOM_PLAYER];
+bool GameClient::sHasStage = false;
 std::vector<GameClient::ChatLine> GameClient::sLobbyChat;
 std::vector<GameClient::ChatLine> GameClient::sRoomChat;
 std::wstring GameClient::sNotice;
@@ -364,7 +366,11 @@ void GameClient::OnGameStart(const S2C_GameStart* p)
     }
     sMySlot = p->mySlot;
     sInGame = true;
-    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) sHasMove[i] = false;   // 지난 판 이동이 남지 않게
+    for (int i = 0; i < MAX_ROOM_PLAYER; ++i) {
+        sHasMove[i] = false;   // 지난 판 이동이 남지 않게
+        sStage[i] = StageView();
+    }
+    sHasStage = false;
 
     // 바로 뒤에 오는 S2C_MapInfo를 받을 수 있게 지금 스테이지 전환을 예약한다.
     // (RoomScene도 다음 프레임에 같은 전환을 부르지만, ChangeScene이 같은 씬 예약은 무시하므로
@@ -403,6 +409,30 @@ bool GameClient::TakeMove(int slot, MoveView& out)
     out = sMoves[slot];
     sHasMove[slot] = false;
     return true;
+}
+
+// 서버가 보낸 스테이지 상태. id로 자리를 찾아 저장 (HUD가 그린다)
+void GameClient::OnStageState(const S2C_StageState* p)
+{
+    if (!sInGame) return;
+
+    for (int k = 0; k < MAX_ROOM_PLAYER; ++k) {
+        const STAGE_PLAYER& s = p->players[k];
+        if (s.id < 0) continue;
+
+        int slot = -1;
+        for (int i = 0; i < MAX_ROOM_PLAYER; ++i)
+            if (sGameStart.players[i].exist && sGameStart.players[i].id == s.id) slot = i;
+        if (slot == -1) continue;
+
+        StageView& v = sStage[slot];
+        v.apple = s.apple;
+        v.appleBox = s.appleBox;
+        v.heart = s.heart;
+        v.timeLeft = s.timeLeft;
+        v.alive = s.alive;
+    }
+    sHasStage = true;
 }
 
 void GameClient::OnEcho(const S2C_Echo* p)

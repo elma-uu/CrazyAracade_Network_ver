@@ -259,7 +259,8 @@ void StageScene::Render(HDC hdc)
     RenderMap(hdc);
     if (mOnline) {
         RenderOnlineNames(hdc);
-        return;   // TODO: 스테이지 HUD
+        RenderOnlineHud(hdc);
+        return;
     }
     RenderHud(hdc);
     if (IsGameOver()) RenderResult(hdc);

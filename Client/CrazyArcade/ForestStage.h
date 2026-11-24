@@ -16,6 +16,7 @@ protected:
     void RenderBackground(HDC hdc) override;
     void RenderMap(HDC hdc) override;
     void RenderHud(HDC hdc) override;
+    void RenderOnlineHud(HDC hdc) override;
 
 private:
     int mBasketScore[PlayerCount] = {};

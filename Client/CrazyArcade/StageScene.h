@@ -42,6 +42,8 @@ protected:
     // 타일/장애물/플레이어를 행 순서로 그려 앞뒤가 맞게 겹치도록 한다
     virtual void RenderMap(HDC hdc) = 0;
     virtual void RenderHud(HDC hdc) {}
+    // 온라인 HUD (S2C_StageState 값으로)
+    virtual void RenderOnlineHud(HDC hdc) {}
 
     void EndGame(int winnerIndex);
     bool IsGameOver() const { return mWinner >= 0; }

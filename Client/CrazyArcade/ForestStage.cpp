@@ -1,5 +1,6 @@
 ﻿#include "ForestStage.h"
 #include "Gfx.h"
+#include "GameClient.h"
 
 namespace {
     // 숲 전용 장애물 코드
@@ -121,6 +122,33 @@ void ForestStage::RenderMap(HDC hdc)
             else if (tile.obstacle == kBasket)
                 Gfx::Draw(hdc, BitmapID::ForestAppleBox, c.x - 30, c.y - 50, 60, 70, 0, 0, 64, 64);
         }
+    }
+}
+
+// 온라인 숲 HUD: 자리마다 들고 있는 사과, 사과상자
+// 자리 0·2는 왼쪽, 1·3은 오른쪽 (시작 모서리와 같은 쪽), 위/아래도 시작 위치 따라
+void ForestStage::RenderOnlineHud(HDC hdc)
+{
+    const GameClient::GameStartInfo& start = GameClient::GameStart();
+
+    for (int i = 0; i < MaxPlayers; i++) {
+        if (!start.players[i].exist) continue;
+
+        int x = (i % 2 == 0) ? 40 : 1170;
+        int y = (i < 2) ? 140 : 520;
+        const GameClient::StageView& s = GameClient::Stage(i);
+
+        COLORREF nameColor = (i == start.mySlot) ? RGB(255, 230, 0) : RGB(255, 255, 255);
+        Gfx::DrawSmallText(hdc, x, y, start.players[i].name, nameColor);
+
+        Gfx::Draw(hdc, BitmapID::ForestApple, x, y + 40, 48, 48, 0, 0, 40, 40);
+        Gfx::DrawSmallText(hdc, x + 60, y + 52, L"사과 " + std::to_wstring(s.apple));
+
+        Gfx::Draw(hdc, BitmapID::ForestAppleBox, x, y + 95, 48, 48, 0, 0, 64, 64);
+        Gfx::DrawSmallText(hdc, x + 60, y + 107, L"사과상자 " + std::to_wstring(s.appleBox));
+
+        if (GameClient::HasStageState() && !s.alive)
+            Gfx::DrawSmallText(hdc, x, y + 155, L"탈락", RGB(255, 120, 120));
     }
 }
 

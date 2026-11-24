@@ -135,6 +135,16 @@ public:
     // 새 이동이 있으면 꺼내 준다
     static bool TakeMove(int slot, MoveView& out);
 
+    // 스테이지 상태 (사과·사과상자·하트·시간·생존)
+    struct StageView {
+        int  apple = 0, appleBox = 0, heart = 0;
+        int  timeLeft = 0;
+        bool alive = true;
+    };
+    static void OnStageState(const S2C_StageState* p);
+    static const StageView& Stage(int slot) { return sStage[slot]; }
+    static bool HasStageState() { return sHasStage; }
+
 private:
     static void BuildPreviewRoom(int roomId);
     static void UpdateEchoTest();
@@ -163,6 +173,9 @@ private:
 
     static MoveView sMoves[MAX_ROOM_PLAYER];
     static bool sHasMove[MAX_ROOM_PLAYER];
+
+    static StageView sStage[MAX_ROOM_PLAYER];
+    static bool sHasStage;
 
     static std::vector<ChatLine> sLobbyChat;
     static std::vector<ChatLine> sRoomChat;
