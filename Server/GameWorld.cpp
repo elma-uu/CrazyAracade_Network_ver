@@ -276,3 +276,27 @@ bool GameWorld::TakeItem(ItemOwner& owner, S2C_ItemGet& packet)
     packet.speed = owner.speed;
     return true;
 }
+
+/* 수정 - 2026-11-25 */
+// 원본 Bomb::Covers / TryHit의 십자 범위와 피해자 비트 마스크를 서버로 옮겼다.
+void GameWorld::CheckHits(HitPlayer (&players)[MAX_ROOM_PLAYER],
+    const std::function<void(const S2C_Hit&)>& broadcast)
+{
+    for (auto& bomb : bombs) {
+        for (int slot = 0; slot < MAX_ROOM_PLAYER; ++slot) {
+            HitPlayer& player = players[slot];
+            unsigned bit = 1u << slot;
+            if (player.id < 0 || !player.alive || player.invincibleTicks > 0
+                || (bomb.hitMask & bit) || !bomb.Covers(player.row, player.col)) continue;
+            bomb.hitMask |= bit;
+            player.invincibleTicks = 10;
+            S2C_Hit packet{};
+            packet.size = sizeof(packet);
+            packet.type = S2C_HIT;
+            packet.victimId = player.id;
+            packet.attackerId = bomb.ownerId;
+            packet.cause = HIT_BOMB;
+            if (broadcast) broadcast(packet);
+        }
+    }
+}

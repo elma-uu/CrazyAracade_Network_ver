@@ -27,6 +27,13 @@ struct ItemOwner : BombOwner {
     int timeLeftMs = 30000;
 };
 
+/* 수정 - 2026-11-25 */
+struct HitPlayer {
+    int id = -1, row = 0, col = 0;
+    bool alive = false;
+    int invincibleTicks = 0; // 50ms 단위, 원본 Player의 500ms 무적 = 10틱
+};
+
 class GameWorld {
 public:
     static constexpr int MapTiles = MAP_TILES;
@@ -47,6 +54,7 @@ public:
         S2C_Attack placed{};
         if (!PlaceBomb(request, owner, &placed)) return false;
         placed.ownerId = sessionId;
+        bombs.back().ownerId = sessionId;
         room.Broadcast(&placed);
         return true;
     }
@@ -70,6 +78,26 @@ public:
         room.Broadcast(&packet);
         return true;
     }
+    /* 수정 - 2026-11-25 */
+    // Room이 유지하는 실제 참가자 상태를 참조로 전달한다. 규칙 콜백은 사과/하트를 처리한다.
+    template<class Room, class Move>
+    void Advance(Room& room, std::uint64_t elapsedMs, Move stepMovement,
+        HitPlayer (&players)[MAX_ROOM_PLAYER],
+        const std::function<void(const S2C_Hit&)>& applyHit = {})
+    {
+        clock.Advance(elapsedMs, stepMovement, [this, &room, &players, &applyHit] {
+            for (auto& player : players)
+                if (player.invincibleTicks > 0) --player.invincibleTicks;
+            StepBomb([&room](const S2C_Explode& p) { room.Broadcast(&p); },
+                [&room](const S2C_BlockBreak& p) { room.Broadcast(&p); });
+            CheckHits(players, [&](const S2C_Hit& p) {
+                if (applyHit) applyHit(p);
+                room.Broadcast(&p);
+            });
+        });
+    }
+    void CheckHits(HitPlayer (&players)[MAX_ROOM_PLAYER],
+        const std::function<void(const S2C_Hit&)>& broadcast);
     void StepBomb();
     void StepBomb(const std::function<void(const S2C_Explode&)>& broadcast,
         const std::function<void(const S2C_BlockBreak&)>& blockBreak = {});
