@@ -218,5 +218,69 @@ int main()
     }
     check("ITEM-03", same && !itemRoom.firstClient.empty());
     check("ITEM-04", !world.PickUpItem(itemRoom, 99, collector));
+    /* 수정 - 2026-11-25 */
+    struct HitRoom {
+        std::vector<S2C_Hit> hits;
+        int FindSlot(int id) const { return id == 42 ? 0 : -1; }
+        void Broadcast(const void* raw) {
+            auto* header = static_cast<const PACKET_HEADER*>(raw);
+            if (header->type == S2C_HIT) hits.push_back(*static_cast<const S2C_Hit*>(raw));
+        }
+    } hitRoom;
+    world.InitBoard(MAP_FOREST);
+    HitPlayer players[MAX_ROOM_PLAYER]{};
+    players[0] = {42, 0, 0, true};
+    players[1] = {77, 0, 1, true};
+    players[2] = {88, 0, 3, true}; // 상자 뒤: 물줄기에 닿지 않음
+    players[3] = {99, 0, 0, false};
+    C2S_Attack hitRequest{};
+    hitRequest.size = sizeof(hitRequest);
+    hitRequest.type = C2S_ATTACK;
+    BombOwner attacker{0, 0, 0, true};
+    attacker.reach = 5;
+    check("HIT-01", world.OnAttack(hitRoom, 42, hitRequest, attacker));
+    int rulesApplied = 0;
+    auto rule = [&](const S2C_Hit&) { ++rulesApplied; };
+    world.Advance(hitRoom, 950, [] {}, players, rule);
+    check("HIT-02", hitRoom.hits.empty());
+    world.Advance(hitRoom, 50, [] {}, players, rule);
+    check("HIT-03", hitRoom.hits.size() == 2 && rulesApplied == 2
+        && hitRoom.hits[0].victimId == 42 && hitRoom.hits[1].victimId == 77
+        && hitRoom.hits[1].attackerId == 42 && hitRoom.hits[1].cause == HIT_BOMB
+        && hitRoom.hits[1].size == sizeof(S2C_Hit));
+    check("HIT-04", players[0].invincibleTicks == 10
+        && players[2].invincibleTicks == 0 && players[3].invincibleTicks == 0);
+    world.CheckHits(players, [&](const S2C_Hit& p) { hitRoom.Broadcast(&p); });
+    check("HIT-05", hitRoom.hits.size() == 2);
+    players[2].col = 1; // 이미 진행 중인 물줄기에 들어와도 피격
+    world.Advance(hitRoom, 50, [] {}, players, rule);
+    check("HIT-06", hitRoom.hits.size() == 3 && hitRoom.hits.back().victimId == 88);
+    world.Advance(hitRoom, 450, [] {}, players, rule);
+    check("HIT-07", hitRoom.hits.size() == 3 && players[0].invincibleTicks == 0);
+    world.OnAttack(hitRoom, 42, hitRequest, attacker);
+    world.Advance(hitRoom, 1000, [] {}, players, rule);
+    check("HIT-08", hitRoom.hits.size() == 6); // 다음 폭발에서는 다시 맞음
+    ServerBomb range{0, 0, 5, 5, 2};
+    range.state = ServerBomb::Exploding;
+    range.reachU = range.reachD = range.reachL = range.reachR = 2;
+    check("HIT-09", range.Covers(5, 5) && range.Covers(3, 5)
+        && range.Covers(7, 5) && range.Covers(5, 3) && range.Covers(5, 7)
+        && !range.Covers(4, 4) && !range.Covers(5, 8));
+    world.InitBoard(MAP_FOREST);
+    hitRoom.hits.clear();
+    for (auto& player : players) player = HitPlayer{};
+    players[0] = {42, 0, 0, true};
+    attacker.col = 0;
+    world.OnAttack(hitRoom, 42, hitRequest, attacker);
+    attacker.col = 1;
+    world.OnAttack(hitRoom, 42, hitRequest, attacker);
+    world.Advance(hitRoom, 1000, [] {}, players);
+    check("HIT-10", hitRoom.hits.size() == 1); // 두 물줄기가 겹쳐도 무적 시간 중 중복 피해 금지
+    players[0].invincibleTicks = 0;
+    world.CheckHits(players, [&](const S2C_Hit& p) { hitRoom.Broadcast(&p); });
+    check("HIT-11", hitRoom.hits.size() == 2); // 다른 폭발은 무적이 끝나면 판정 가능
+    players[0].invincibleTicks = 0;
+    world.CheckHits(players, [&](const S2C_Hit& p) { hitRoom.Broadcast(&p); });
+    check("HIT-12", hitRoom.hits.size() == 2); // 동일 폭발은 피해자당 한 번
     return failed;
 }
