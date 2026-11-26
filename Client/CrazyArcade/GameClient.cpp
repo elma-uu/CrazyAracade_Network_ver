@@ -435,3 +435,10 @@ void GameClient::OnItemGet(const S2C_ItemGet* packet)
 {
     if (sInGame) SceneManager::OnItemGet(*packet);
 }
+
+
+/* 수정 - 2026-11-26 */
+void GameClient::OnHit(const S2C_Hit* packet)
+{
+    if (sInGame) SceneManager::OnHit(*packet);
+}

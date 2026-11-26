@@ -18,6 +18,8 @@ public:
     bool OnBlockBreak(const S2C_BlockBreak& packet);
     /* 수정 - 2026-11-24 */
     bool OnItemGet(const S2C_ItemGet& packet);
+    /* 수정 - 2026-11-26 */
+    bool OnHit(const S2C_Hit& packet);
     bool OnExplode(const S2C_Explode& packet);
     bool OnAttack(const S2C_Attack& packet);
     void ApplyMapInfo(const S2C_MapInfo& packet);

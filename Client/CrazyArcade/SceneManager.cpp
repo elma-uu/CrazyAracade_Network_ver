@@ -116,3 +116,12 @@ bool SceneManager::OnItemGet(const S2C_ItemGet& packet)
     auto* stage = dynamic_cast<StageScene*>(sActive.get());
     return stage && stage->OnItemGet(packet);
 }
+
+
+/* 수정 - 2026-11-26 */
+bool SceneManager::OnHit(const S2C_Hit& packet)
+{
+    ApplyPendingChange();
+    auto* stage = dynamic_cast<StageScene*>(sActive.get());
+    return stage && stage->OnHit(packet);
+}

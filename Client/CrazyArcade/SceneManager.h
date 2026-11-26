@@ -6,6 +6,7 @@ struct S2C_Attack;
 struct S2C_Explode;
 struct S2C_BlockBreak;
 struct S2C_ItemGet;
+struct S2C_Hit;
 
 enum class SceneType { Title, Login, Lobby, Room, Select, Forest, City, Ice, Count };
 
@@ -23,6 +24,8 @@ public:
     static bool OnBlockBreak(const S2C_BlockBreak& packet);
     /* 수정 - 2026-11-24 */
     static bool OnItemGet(const S2C_ItemGet& packet);
+    /* 수정 - 2026-11-26 */
+    static bool OnHit(const S2C_Hit& packet);
     static bool OnExplode(const S2C_Explode& packet);
     static bool OnAttack(const S2C_Attack& packet);
     static bool OnMapInfo(const S2C_MapInfo& packet);

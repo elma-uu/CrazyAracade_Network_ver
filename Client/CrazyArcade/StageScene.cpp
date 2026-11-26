@@ -97,7 +97,11 @@ void StageScene::Update(float deltaTime)
 
 void StageScene::FixedUpdate()
 {
-    if (mOnline) return;   // 판정은 서버가 한다
+    /* 수정 - 2026-11-26 */
+    if (mOnline) {
+        for (auto& player : mPlayers) if (player) player->UpdateHitEffect();
+        return; // 이동·피해 판정은 서버가 한다.
+    }
     if (IsGameOver()) return;
 
     for (auto& player : mPlayers) if (player) player->FixedUpdate();
@@ -329,6 +333,23 @@ bool StageScene::OnItemGet(const S2C_ItemGet& packet)
         mPlayers[i]->SetBombRange(packet.bombReach);
         mPlayers[i]->SetMaxBombs(packet.maxBomb);
         mPlayers[i]->SetSpeed(packet.speed);
+        return true;
+    }
+    return false;
+}
+
+/* 수정 - 2026-11-26 */
+bool StageScene::OnHit(const S2C_Hit& packet)
+{
+    if (!mOnline || packet.size != sizeof(packet) || packet.type != S2C_HIT
+        || packet.victimId < 0 || (packet.cause != HIT_BOMB && packet.cause != HIT_TRAIN))
+        return false;
+    const auto& start = GameClient::GameStart();
+    for (int i = 0; i < MaxPlayers; ++i) {
+        if (!mPlayers[i] || start.players[i].id != packet.victimId) continue;
+        // 서버가 확정한 새 피격이므로 수신 시점부터 500ms 깜빡인다.
+        mPlayers[i]->Hit(true);
+        Audio::PlayEffect("Die.wav");
         return true;
     }
     return false;

@@ -345,6 +345,10 @@ bool NetworkManager::ProcessPacket(unsigned char* packet)
         GameClient::OnMapInfo(reinterpret_cast<S2C_MapInfo*>(packet));
         break;
     /* 수정 - 2026-11-24 */
+    /* 수정 - 2026-11-26 */
+    case S2C_HIT:
+        GameClient::OnHit(reinterpret_cast<S2C_Hit*>(packet));
+        break;
     case S2C_ITEM_GET:
         GameClient::OnItemGet(reinterpret_cast<S2C_ItemGet*>(packet));
         break;
