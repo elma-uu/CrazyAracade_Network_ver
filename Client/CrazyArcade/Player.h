@@ -24,7 +24,9 @@ public:
     void Render(HDC hdc) const override;
     void RenderPortrait(HDC hdc, int x, int y) const;
 
-    void Hit();
+    /* 수정 - 2026-11-26 */
+    void Hit(bool restart = false);
+    void UpdateHitEffect();
     bool IsHit() const { return mHitTimerMs > 0; }
 
     void OnItemPicked(ItemType type) { ++mPickedItems[static_cast<int>(type)]; }

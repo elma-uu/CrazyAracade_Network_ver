@@ -90,14 +90,21 @@ bool Player::WantsToPlaceBomb() const
     return Input::GetKeyDown(mKeys.bomb);
 }
 
-void Player::Hit()
+/* 수정 - 2026-11-26 */
+void Player::Hit(bool restart)
 {
-    if (mHitTimerMs <= 0) mHitTimerMs = kHitBlinkMs;
+    if (restart || mHitTimerMs <= 0) mHitTimerMs = kHitBlinkMs;
+}
+
+// 온라인에서는 이동 입력을 처리하지 않고 시각 효과의 시간만 갱신한다.
+void Player::UpdateHitEffect()
+{
+    mHitTimerMs = std::max(0, mHitTimerMs - Config::FixedStepMs);
 }
 
 void Player::FixedUpdate()
 {
-    if (mHitTimerMs > 0) mHitTimerMs -= Config::FixedStepMs;
+    UpdateHitEffect();
 
     Dir dir = GetHeldDirection();
     if (dir == Dir::None) return;
