@@ -46,6 +46,7 @@ enum class BitmapID {
     // 플레이어 (색상은 Player가 자기 복사본을 만들어 입힌다)
     Player,
     PlayerMask,
+    PlayerDie,
     // 아이템
     ItemPower,
     ItemBombCount,

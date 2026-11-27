@@ -49,8 +49,13 @@ public:
     void SetNetMove(int x, int y, int destX, int destY, int dir, float speed);
     void UpdateNetMove(float deltaTime);
 
+    // 탈락하면 물방울에 갇혔다가 쓰러진 모습으로 남는다
+    void Die();
+    bool IsDead() const { return mDead; }
+
 private:
     void RenderFootDebug(HDC hdc) const;
+    void RenderDie(HDC hdc) const;
     static bool sShowFootDebug;
 
     Dir GetHeldDirection() const;
@@ -65,6 +70,7 @@ private:
     const KeyBinding mKeys;
     const TileMap& mMap;
     HBITMAP mSprite = nullptr;
+    HBITMAP mDieSprite = nullptr;
 
     float mPx = 0, mPy = 0;
     Dir mFacing = Dir::Down;
@@ -81,4 +87,7 @@ private:
     // 온라인 보간
     float mNetDestX = 0, mNetDestY = 0;
     float mNetAnimMs = 0;   // 걷기 그림 넘기는 시간
+
+    bool  mDead = false;
+    float mDieMs = 0;
 };

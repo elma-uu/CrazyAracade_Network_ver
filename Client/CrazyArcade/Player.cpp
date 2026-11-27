@@ -29,6 +29,27 @@ namespace {
         if (current < target) return std::min(current + step, target);
         return std::max(current - step, target);
     }
+
+    // bazzi_die.bmp는 70x70 칸, overlayCol < 0이면 겹칠 그림 없음
+    struct DieFrame { int col, row, overlayCol, overlayRow, ms; };
+    const DieFrame kDieFrames[] = {
+        { 0, 0, -1, 0, 120 }, { 1, 0, -1, 0, 120 }, { 2, 0, -1, 0, 120 }, { 1, 0, -1, 0, 120 },
+        { 0, 0, -1, 0, 120 }, { 1, 0, -1, 0, 120 }, { 2, 0, -1, 0, 120 },
+        { 0, 1, -1, 0, 90 },
+        { 0, 2, -1, 0, 90 },
+        { 1, 2, 2, 2, 140 },
+        { 1, 1, 2, 1, 140 },
+        { 3, 2, -1, 0, 160 },
+        { 4, 2, -1, 0, 0 },
+    };
+    constexpr int kDieFrameCount = sizeof(kDieFrames) / sizeof(kDieFrames[0]);
+    constexpr int kDieCell = 70;
+    constexpr int kDieDrawW = 56;   // 걷는 그림과 같은 가로 비율 (50 → 40)
+    constexpr int kDieDrawH = 70;
+    constexpr int kDieFeetY = 64;   // 칸 안에서 발이 닿는 높이
+    constexpr int kBubbleSize = 62; // 물방울은 동그랗게
+    constexpr int kBubbleFeetY = 57;
+    constexpr int kShadowCol = 5, kShadowRow = 2;
 }
 
 bool Player::sShowFootDebug = false;
@@ -38,11 +59,13 @@ Player::Player(int index, const KeyBinding& keys, int colorIndex, const TileMap&
 {
     int color = std::clamp(colorIndex, 0, GameData::ColorCount - 1);
     mSprite = Gfx::CreateHueShiftedCopy(ResourceManager::Get(BitmapID::Player), kColorHueTable[color], 0, 20);
+    mDieSprite = Gfx::CreateHueShiftedCopy(ResourceManager::Get(BitmapID::PlayerDie), kColorHueTable[color], 0, 20);
 }
 
 Player::~Player()
 {
     if (mSprite) DeleteObject(mSprite);
+    if (mDieSprite) DeleteObject(mDieSprite);
 }
 
 void Player::Spawn(int col, int row)
@@ -58,7 +81,19 @@ void Player::Spawn(int col, int row)
     mMaxBombs = 2;
     mApples = 0;
     mHitTimerMs = 0;
+    mDead = false;
+    mDieMs = 0;
     std::fill(std::begin(mPickedItems), std::end(mPickedItems), 0);
+}
+
+void Player::Die()
+{
+    if (mDead) return;
+    mDead = true;
+    mDieMs = 0;
+    mHitTimerMs = 0;
+    mNetDestX = mPx;
+    mNetDestY = mPy;
 }
 
 int Player::KeyOf(Dir dir) const
@@ -181,6 +216,8 @@ void Player::Slide(bool horizontal, int ahead, float& side, float distance)
 // 서버가 알려 준 이동
 void Player::SetNetMove(int x, int y, int destX, int destY, int dir, float speed)
 {
+    if (mDead) return;
+
     // 출발 칸에서 다시 시작
     mPx = (float)x;
     mPy = (float)y;
@@ -197,6 +234,10 @@ void Player::SetNetMove(int x, int y, int destX, int destY, int dir, float speed
 // 서버와 같은 빠르기로 목적 칸까지 간다
 void Player::UpdateNetMove(float deltaTime)
 {
+    if (mDead) {
+        mDieMs += deltaTime * 1000;
+        return;
+    }
     if (mHitTimerMs > 0) mHitTimerMs -= (int)(deltaTime * 1000);
 
     if (mPx == mNetDestX && mPy == mNetDestY) return;   // 도착해서 멈춤
@@ -215,6 +256,10 @@ void Player::UpdateNetMove(float deltaTime)
 
 void Player::Render(HDC hdc) const
 {
+    if (mDead) {
+        RenderDie(hdc);
+        return;
+    }
     if (IsHit() && (GetTickCount64() / 100) % 2 == 1) return;
 
     int drawX = Config::MapOriginX + static_cast<int>(mPx * Config::TileSize);
@@ -235,6 +280,46 @@ void Player::Render(HDC hdc) const
     Gfx::Draw(hdc, BitmapID::PlayerMask, drawX, drawY, Config::TileSize, 60, srcX, srcY, 50, 60);
 
     if (sShowFootDebug) RenderFootDebug(hdc);
+}
+
+void Player::RenderDie(HDC hdc) const
+{
+    int index = kDieFrameCount - 1;
+    float elapsed = 0;
+    for (int i = 0; i < kDieFrameCount - 1; ++i) {
+        elapsed += static_cast<float>(kDieFrames[i].ms);
+        if (mDieMs < elapsed) {
+            index = i;
+            break;
+        }
+    }
+    const DieFrame& f = kDieFrames[index];
+
+    // 걷는 그림과 발 위치를 맞춘다
+    const int centerX = Config::MapOriginX + static_cast<int>(mPx * Config::TileSize) + Config::TileHalf;
+    const int feetY = Config::MapOriginY + static_cast<int>(mPy * Config::TileSize) + 30;
+
+    int w = kDieDrawW;
+    int h = kDieDrawH;
+    int feet = kDieFeetY;
+    if (f.row == 0 || f.col == 0) {   // 물방울에 갇히고 터지는 장면
+        w = kBubbleSize;
+        h = kBubbleSize;
+        feet = kBubbleFeetY;
+    }
+    const int x = centerX - w / 2;
+    const int y = feetY - feet;
+
+    if (index >= kDieFrameCount - 2) {
+        Gfx::Draw(hdc, mDieSprite, x, y, w, h,
+            kShadowCol * kDieCell, kShadowRow * kDieCell, kDieCell, kDieCell);
+    }
+    Gfx::Draw(hdc, mDieSprite, x, y, w, h,
+        f.col * kDieCell, f.row * kDieCell, kDieCell, kDieCell);
+    if (f.overlayCol >= 0) {
+        Gfx::Draw(hdc, mDieSprite, x, y, w, h,
+            f.overlayCol * kDieCell, f.overlayRow * kDieCell, kDieCell, kDieCell);
+    }
 }
 
 void Player::RenderFootDebug(HDC hdc) const

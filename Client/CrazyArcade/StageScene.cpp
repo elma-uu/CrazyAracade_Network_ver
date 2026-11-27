@@ -91,6 +91,8 @@ void StageScene::Update(float deltaTime)
             GameClient::MoveView m;
             if (GameClient::TakeMove(i, m))
                 mPlayers[i]->SetNetMove(m.x, m.y, m.destX, m.destY, m.dir, m.speed);
+            if (GameClient::HasStageState() && !GameClient::Stage(i).alive)
+                mPlayers[i]->Die();
             mPlayers[i]->UpdateNetMove(deltaTime);
         }
         return;

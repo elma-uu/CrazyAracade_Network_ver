@@ -51,6 +51,7 @@ void ResourceManager::LoadAll(HINSTANCE hInst)
 
         { BitmapID::Player,          IDB_BITMAP_PLAYER },
         { BitmapID::PlayerMask,      IDB_BITMAP_PLAYER_MASK },
+        { BitmapID::PlayerDie,       IDB_BITMAP_PLAYER_DIE },
 
         { BitmapID::ItemPower,       IDB_BITMAP_ITEM_POWER },
         { BitmapID::ItemBombCount,   IDB_BITMAP_ITEM_BOMBS },
