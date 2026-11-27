@@ -32,6 +32,15 @@ void PlayerMovement::SetInput(int slot, unsigned char dir)
     m_players[slot].inputDir = dir;
 }
 
+void PlayerMovement::Eliminate(int slot)
+{
+    if (slot < 0 || slot >= MAX_ROOM_PLAYER) return;
+
+    ServerPlayer& p = m_players[slot];
+    p.alive = false;
+    p.inputDir = IN_NONE;
+}
+
 // 넘어가지 않게 다가가기
 static float Approach(float cur, float target, float step)
 {

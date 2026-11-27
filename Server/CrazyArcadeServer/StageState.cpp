@@ -68,14 +68,22 @@ void StageState::OnHit(int victimSlot, int attackerSlot)
     if (!IsValidPlayer(victimSlot)) return;
 
     StagePlayer& victim = m_players[victimSlot];
-    if (victim.apple <= 0) return;   // 들고 있는 사과가 없을 때는 11/26 (상자 감소·탈락)
+    if (victim.apple > 0) {
+        // 내 물풍선에 맞았거나 때린 사람이 없으면 뺏어 갈 사람이 없다
+        if (victimSlot == attackerSlot) return;
+        if (!IsValidPlayer(attackerSlot)) return;
 
-    // 내 물풍선에 맞았거나 때린 사람이 없으면 뺏어 갈 사람이 없다
-    if (victimSlot == attackerSlot) return;
-    if (!IsValidPlayer(attackerSlot)) return;
+        m_players[attackerSlot].apple += victim.apple;
+        victim.apple = 0;
+        m_changed = true;
+        return;
+    }
 
-    m_players[attackerSlot].apple += victim.apple;
-    victim.apple = 0;
+    if (victim.appleBox > 0) {
+        victim.appleBox--;
+    } else {
+        victim.alive = false;
+    }
     m_changed = true;
 }
 

@@ -131,11 +131,16 @@ int main()
     check("hit -> attacker takes victim's apples",
           h.Get(0).apple == 0 && h.Get(1).apple == 4 && h.IsChanged());
 
-    // 들고 있는 사과가 없으면 아무 일 없음 (상자 감소는 11/26)
+    // 사과도 상자도 비었으면 탈락
     h.ClearChanged();
     h.OnHit(0, 2);
-    check("hit with no apples -> nothing changes",
-          h.Get(0).apple == 0 && h.Get(2).apple == 0 && !h.IsChanged());
+    check("hit with no apples and empty box -> eliminated",
+          !h.Get(0).alive && h.Get(2).apple == 0 && h.IsChanged());
+
+    // 탈락한 사람은 더 맞아도 그대로
+    h.ClearChanged();
+    h.OnHit(0, 2);
+    check("eliminated player ignores hits", !h.Get(0).alive && !h.IsChanged());
 
     // 내 물풍선에 맞으면 뺏어 갈 사람 없음
     h.OnHit(1, 1);
@@ -147,13 +152,39 @@ int main()
     h.OnHit(1, 9);
     check("invalid attacker -> ignored", h.Get(1).apple == 4 && !h.IsChanged());
 
-    // 상자에 넣은 사과는 안 뺏긴다
+    // 11/26 사과가 없으면 상자에서 하나 잃는다 (때린 사람이 가져가지는 않음)
     h.AddApples(2, 2);
     h.DepositApples(2, 1, 18);   // 2번 상자 (0,18) 옆
     h.ClearChanged();
     h.OnHit(2, 1);
-    check("apples in box are safe",
-          h.Get(2).appleBox == 2 && h.Get(1).apple == 4 && !h.IsChanged());
+    check("no apples -> lose one from box",
+          h.Get(2).appleBox == 1 && h.Get(2).alive && h.Get(1).apple == 4 && h.IsChanged());
+
+    // 내 물풍선이어도 상자에서 잃는다
+    h.OnHit(2, 2);
+    check("own bomb with no apples -> lose one from box", h.Get(2).appleBox == 0 && h.Get(2).alive);
+
+    // 상자까지 비었을 때 맞으면 탈락
+    h.OnHit(2, 1);
+    check("empty box -> eliminated", !h.Get(2).alive);
+
+    // 탈락하면 사과를 받거나 넣지 않는다
+    h.ClearChanged();
+    h.AddApples(2, 1);
+    h.DepositApples(2, 1, 18);
+    check("eliminated player gets no apples", h.Get(2).apple == 0 && !h.IsChanged());
+
+    // 탈락하면 서버 이동도 멈춘다 (Room::OnPlayerHit과 같은 순서)
+    PlayerMovement em;
+    StageState es;
+    es.Init(MAP_FOREST);
+    em.Spawn(0, 10, 0, 0);
+    es.AddPlayer(0, 10);
+    em.SetInput(0, IN_RIGHT);
+    es.OnHit(0, -1);
+    if (!es.IsAlive(0)) em.Eliminate(0);
+    Run(em, es, 8 * 3);
+    check("eliminated -> stops moving", em.Get(0).x == 0 && !em.Get(0).alive);
 
     // 숲이 아니면 사과 규칙 없음
     StageState iceHit;

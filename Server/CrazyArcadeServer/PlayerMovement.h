@@ -23,6 +23,8 @@ public:
 
     // 누르고 있는 방향, IN_NONE이면 뗌
     void SetInput(int slot, unsigned char dir);
+    // 탈락하면 그 자리에서 멈춘다
+    void Eliminate(int slot);
 
     // 12ms마다 부른다
     void Step(const std::function<bool(int, int)>& canWalk,

@@ -22,8 +22,9 @@ public:
     void AddApples(int slot, int count);
     // 내 사과상자 옆이면 사과를 상자에 넣는다
     void DepositApples(int slot, int x, int y);
-    // 물풍선에 맞으면 들고 있던 사과를 때린 사람에게 뺏긴다
+    // 사과가 있으면 뺏기고, 없으면 상자에서 하나 잃고, 상자도 비었으면 탈락
     void OnHit(int victimSlot, int attackerSlot);
+    bool IsAlive(int slot) const { return m_players[slot].alive; }
 
     // 사과상자는 시작 모서리 바로 안쪽 칸
     static void GetAppleBoxTile(int slot, int& x, int& y);

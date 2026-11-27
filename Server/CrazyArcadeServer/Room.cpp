@@ -297,7 +297,11 @@ void Room::StepMovement(const std::function<bool(int, int)>& canWalk)
 void Room::OnPlayerHit(int victimSlot, int attackerSlot)
 {
     if (m_state != RS_PLAYING) return;
-    m_stage.OnHit(victimSlot, attackerSlot);   // 숲: 사과 뺏기
+    if (victimSlot < 0 || victimSlot >= MAX_ROOM_PLAYER) return;
+
+    m_stage.OnHit(victimSlot, attackerSlot);
+    if (!m_stage.IsAlive(victimSlot))
+        m_move.Eliminate(victimSlot);
     if (m_stage.IsChanged())
         SendStageState();
 }
