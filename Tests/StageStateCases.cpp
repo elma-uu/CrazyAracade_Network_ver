@@ -186,14 +186,43 @@ int main()
     Run(em, es, 8 * 3);
     check("eliminated -> stops moving", em.Get(0).x == 0 && !em.Get(0).alive);
 
-    // 숲이 아니면 사과 규칙 없음
-    StageState iceHit;
-    iceHit.Init(MAP_ICE);
-    iceHit.AddPlayer(0, 10);
-    iceHit.AddPlayer(1, 11);
-    iceHit.ClearChanged();
-    iceHit.OnHit(0, 1);
-    check("not forest -> no apple rule", !iceHit.IsChanged());
+    // 11/27 얼음: 하트 3개로 시작, 맞을 때마다 하나씩, 다 잃으면 탈락
+    StageState ice2;
+    ice2.Init(MAP_ICE);
+    ice2.AddPlayer(0, 10);
+    ice2.AddPlayer(1, 11);
+    check("ice start heart 3", ice2.Get(0).heart == 3 && ice2.Get(1).heart == 3);
+
+    ice2.ClearChanged();
+    ice2.OnHit(0, 1);
+    check("ice hit -> heart 2, no apples", ice2.Get(0).heart == 2 && ice2.Get(1).apple == 0 && ice2.IsChanged());
+
+    ice2.OnHit(0, 0);
+    check("ice own bomb also counts -> heart 1", ice2.Get(0).heart == 1 && ice2.Get(0).alive);
+
+    ice2.OnHit(0, 1);
+    check("ice heart 0 -> eliminated", ice2.Get(0).heart == 0 && !ice2.Get(0).alive);
+
+    ice2.ClearChanged();
+    ice2.OnHit(0, 1);
+    check("ice eliminated ignores hits", ice2.Get(0).heart == 0 && !ice2.IsChanged());
+
+    S2C_StageState icePkt;
+    ice2.Fill(icePkt);
+    check("ice packet hearts / alive",
+          icePkt.players[0].heart == 0 && !icePkt.players[0].alive &&
+          icePkt.players[1].heart == 3 && icePkt.players[1].alive);
+
+    // 숲 상자 규칙은 얼음에 안 섞인다
+    check("ice has no apple box rule", ice2.Get(1).appleBox == 0 && ice2.Get(1).alive);
+
+    // 도시는 아직 맞아도 상태 변화 없음 (타이머는 11/30)
+    StageState city;
+    city.Init(MAP_CITY);
+    city.AddPlayer(0, 10);
+    city.ClearChanged();
+    city.OnHit(0, -1);
+    check("city hit -> no stage change yet", city.Get(0).alive && city.Get(0).heart == 0 && !city.IsChanged());
 
     printf(failed == 0 ? "ALL PASS\n" : "FAILED: %d\n", failed);
     return failed;

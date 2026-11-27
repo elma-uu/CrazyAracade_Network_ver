@@ -1,7 +1,7 @@
 #pragma once
 #include "protocol.h"
 
-// 스테이지 상태 (숲 사과, 사과상자)
+// 스테이지 상태 (숲 사과·사과상자, 얼음 하트)
 
 struct StagePlayer {
     int  sessionId = -1;   // -1 = 빈 자리
@@ -22,7 +22,7 @@ public:
     void AddApples(int slot, int count);
     // 내 사과상자 옆이면 사과를 상자에 넣는다
     void DepositApples(int slot, int x, int y);
-    // 사과가 있으면 뺏기고, 없으면 상자에서 하나 잃고, 상자도 비었으면 탈락
+    // 물풍선에 맞았을 때 맵별 규칙 적용
     void OnHit(int victimSlot, int attackerSlot);
     bool IsAlive(int slot) const { return m_players[slot].alive; }
 
@@ -39,6 +39,10 @@ public:
 
 private:
     bool IsValidPlayer(int slot) const;
+    // 숲: 사과가 있으면 뺏기고, 없으면 상자에서 하나 잃고, 상자도 비었으면 탈락
+    void OnForestHit(int victimSlot, int attackerSlot);
+    // 얼음: 하트 하나 잃고, 다 잃으면 탈락
+    void OnIceHit(int victimSlot);
 
     int         m_mapId = MAP_FOREST;
     StagePlayer m_players[MAX_ROOM_PLAYER];

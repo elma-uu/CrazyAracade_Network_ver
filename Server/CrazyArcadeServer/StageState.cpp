@@ -1,6 +1,10 @@
 #include "StageState.h"
 #include <cstdlib>
 
+namespace {
+    constexpr int kIceStartHeart = 3;
+}
+
 void StageState::Init(int mapId)
 {
     m_mapId = mapId;
@@ -17,6 +21,7 @@ void StageState::AddPlayer(int slot, int sessionId)
     p = StagePlayer();
     p.sessionId = sessionId;
     p.alive = true;
+    if (m_mapId == MAP_ICE) p.heart = kIceStartHeart;
     m_changed = true;
 }
 
@@ -64,9 +69,25 @@ void StageState::DepositApples(int slot, int x, int y)
 
 void StageState::OnHit(int victimSlot, int attackerSlot)
 {
-    if (m_mapId != MAP_FOREST) return;
     if (!IsValidPlayer(victimSlot)) return;
 
+    if (m_mapId == MAP_FOREST) OnForestHit(victimSlot, attackerSlot);
+    else if (m_mapId == MAP_ICE) OnIceHit(victimSlot);
+}
+
+void StageState::OnIceHit(int victimSlot)
+{
+    StagePlayer& victim = m_players[victimSlot];
+    victim.heart--;
+    if (victim.heart <= 0) {
+        victim.heart = 0;
+        victim.alive = false;
+    }
+    m_changed = true;
+}
+
+void StageState::OnForestHit(int victimSlot, int attackerSlot)
+{
     StagePlayer& victim = m_players[victimSlot];
     if (victim.apple > 0) {
         // 내 물풍선에 맞았거나 때린 사람이 없으면 뺏어 갈 사람이 없다
